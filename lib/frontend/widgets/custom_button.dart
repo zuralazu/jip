@@ -15,10 +15,11 @@ class CustomButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 45,
+      height: 50,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.yellow,
+          elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -27,8 +28,10 @@ class CustomButton extends StatelessWidget {
         child: Text(
           text,
           style: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
+            color: AppColors.primary,
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+            letterSpacing: 0.3,
           ),
         ),
       ),
