@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'frontend/pages/splash/splash_page.dart';
 import 'frontend/pages/login/login_page.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await dotenv.load(fileName: ".env"); // 🔥 LOAD ENV
+
+  print("ENV BASE_URL: ${dotenv.env['BASE_URL']}");
+
   runApp(const MyApp());
 }
 
@@ -14,7 +21,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'JIM Pekanbaru',
-      initialRoute: '/login',
+      initialRoute: '/',
       routes: {
         '/': (context) => const SplashPage(),
         '/login': (context) => const LoginPage(),
