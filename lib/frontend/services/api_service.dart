@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
+import '../services/auth_service.dart';
 
 class ApiService {
   static String get baseUrl => AppConfig.baseUrl;
@@ -36,6 +37,46 @@ class ApiService {
         "data": data,
       };
     } catch (e) {
+      return {
+        "statusCode": response.statusCode,
+        "data": response.body,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getDashboard() async {
+    final token = await AuthService.getToken();
+
+    final url = Uri.parse("$baseUrl/dashboard");
+
+    print("=== DEBUG DASHBOARD ===");
+    print("TOKEN: $token");
+    print("URL: $url");
+
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
+
+    print("STATUS: ${response.statusCode}");
+    print("BODY: ${response.body}");
+
+    try {
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 401) {
+        await AuthService.logout();
+      }
+
+      return {
+        "statusCode": response.statusCode,
+        "data": data,
+      };
+    } catch (e) {
+      print("ERROR RESPONSE (NOT JSON): ${response.body}");
       return {
         "statusCode": response.statusCode,
         "data": response.body,

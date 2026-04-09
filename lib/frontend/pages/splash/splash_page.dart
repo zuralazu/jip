@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../utils/colors.dart';
 
+import '../../services/auth_service.dart';
+import '../dashboard/dashboard_page.dart';
+
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -19,6 +22,7 @@ class _SplashPageState extends State<SplashPage>
   @override
   void initState() {
     super.initState();
+
 
     // 🎬 controller animasi
     _controller = AnimationController(
@@ -39,12 +43,27 @@ class _SplashPageState extends State<SplashPage>
     // ▶️ start animasi
     _controller.forward();
 
-    // ⏱️ pindah halaman setelah 3 detik
-    Timer(const Duration(seconds: 3), () {
-      if (mounted) {
+    void checkLogin() async {
+      await Future.delayed(const Duration(seconds: 3));
+
+      final token = await AuthService.getToken();
+
+      if (!mounted) return;
+
+      if (token != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const DashboardPage(),
+          ),
+        );
+      } else {
         Navigator.pushReplacementNamed(context, '/login');
       }
-    });
+    }
+
+    _controller.forward();
+    checkLogin();
   }
 
   @override
