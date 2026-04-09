@@ -8,7 +8,7 @@ Future<void> main() async {
 
   await dotenv.load(fileName: ".env"); // 🔥 LOAD ENV
 
-  print("ENV BASE_URL: ${dotenv.env['BASE_URL']}");
+  print("ENV BASE_URL: ${dotenv.env['BASE_URL_DEV']}");
 
   runApp(const MyApp());
 }

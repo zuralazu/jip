@@ -3,6 +3,8 @@ import '../../utils/colors.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
 import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
+import '../dashboard/dashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,8 +31,18 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => isLoading = false);
 
     if (result["statusCode"] == 200) {
-      debugPrint("LOGIN BERHASIL");
-      debugPrint(result["data"].toString());
+      final token = result["data"]["authorization"]["access_token"];
+
+      print("TOKEN LOGIN: $token");
+
+      await AuthService.saveToken(token); // 🔥 WAJIB
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const DashboardPage(),
+        ),
+      );
     } else {
       debugPrint("LOGIN GAGAL");
       debugPrint(result["data"].toString());
@@ -52,17 +64,7 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   Image.asset(
                     'assets/images/logo.png',
-                    width: 110,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'JIM PEKANBARU',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                      letterSpacing: 2,
-                    ),
+                    width: 140,
                   ),
                 ],
               ),
