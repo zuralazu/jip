@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../utils/colors.dart';
+import '../../utils/currency_format.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/transaction_card.dart';
+import '../../services/auth_service.dart';
+import '../tugas/tugas_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -25,17 +28,18 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void fetchDashboard() async {
     final result = await ApiService.getDashboard();
-
-    // Debug: print dulu struktur responsenya
-    debugPrint('FULL RESPONSE: $result');
-    debugPrint('STATUS CODE: ${result["statusCode"]}');
-    debugPrint('DATA: ${result["data"]}');
-
     if (result["statusCode"] == 200) {
       final data = result["data"];
-
-      // Cek struktur: ada yang langsung "data", ada yang tidak
       final extracted = data["data"] ?? data;
+
+      print("FULL RESPONSE:");
+      print(result["data"]);
+      print("TYPE DATA:");
+      print(result["data"].runtimeType);
+
+      print("EXTRACTED:");
+      print(data["data"]);
+      print(data["data"]?.runtimeType);
 
       if (extracted != null) {
         setState(() {
@@ -56,6 +60,131 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  // Ganti handleLogout dengan ini
+  void handleLogout() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.logout_rounded,
+                    color: Colors.red, size: 26),
+              ),
+              const SizedBox(height: 16),
+
+              // Judul
+              const Text(
+                'Keluar Aplikasi?',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textDark,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Subjudul
+              const Text(
+                'Kamu akan keluar dari akun ini.\nPastikan kamu sudah menyimpan data.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textGrey,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Tombol
+              Row(
+                children: [
+                  // Batal
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFDDDDDD)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text(
+                        'Batal',
+                        style: TextStyle(
+                          color: AppColors.textGrey,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Ya, Keluar
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        final result = await ApiService.logout();
+                        if (result["statusCode"] == 200) {
+                          await AuthService.logout();
+                          if (!mounted) return;
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/login',
+                                (route) => false,
+                          );
+                        } else {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Gagal logout, coba lagi'),
+                              backgroundColor: Colors.red.shade400,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text(
+                        'Ya, Keluar',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -67,7 +196,6 @@ class _DashboardPageState extends State<DashboardPage> {
       );
     }
 
-    // Tampilkan error kalau ada
     if (errorMessage != null || dashboardData == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
@@ -84,8 +212,7 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(height: 16),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                ),
+                    backgroundColor: AppColors.primary),
                 onPressed: () {
                   setState(() {
                     isLoading = true;
@@ -93,10 +220,8 @@ class _DashboardPageState extends State<DashboardPage> {
                   });
                   fetchDashboard();
                 },
-                child: const Text(
-                  'Coba Lagi',
-                  style: TextStyle(color: Colors.white),
-                ),
+                child: const Text('Coba Lagi',
+                    style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -104,29 +229,29 @@ class _DashboardPageState extends State<DashboardPage> {
       );
     }
 
-    // Akses data dengan null-safety
     final header    = dashboardData!["header"]    as Map<String, dynamic>? ?? {};
     final statistik = dashboardData!["statistik"] as Map<String, dynamic>? ?? {};
     final riwayat   = dashboardData!["riwayat_transaksi"] as List? ?? [];
 
+    // ── Layout utama: TIDAK scroll, transaction list yang scroll ──
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
         children: [
+          // Header biru (fixed)
           _buildHeader(header),
+
+          // Stat row (fixed)
+          _buildStatRow(statistik),
+
+          const SizedBox(height: 8),
+
+          // Transaction list (Expanded → internal ListView yang scroll)
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildStatRow(statistik),
-                  const SizedBox(height: 16),
-                  _buildTransactionList(riwayat),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
+            child: _buildTransactionList(riwayat),
           ),
+
+          const SizedBox(height: 8),
         ],
       ),
       bottomNavigationBar: _buildBottomNav(),
@@ -150,11 +275,9 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Baris atas: Sapaan + Saldo
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Sapaan
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,18 +302,14 @@ class _DashboardPageState extends State<DashboardPage> {
                   ],
                 ),
               ),
-
               const SizedBox(width: 12),
-
-              // Kartu Saldo
               Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                      color: Colors.white.withOpacity(0.2)),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -205,7 +324,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Rp. ${header['saldo_komisi']}',
+                      CurrencyFormat.toRupiah(header['saldo_komisi']),
                       style: const TextStyle(
                         color: AppColors.yellow,
                         fontSize: 16,
@@ -217,10 +336,7 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ],
           ),
-
           const SizedBox(height: 20),
-
-          // Tombol Tugas
           SizedBox(
             width: double.infinity,
             height: 46,
@@ -232,11 +348,8 @@ class _DashboardPageState extends State<DashboardPage> {
                     borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () {},
-              icon: const Icon(
-                Icons.assignment_outlined,
-                color: AppColors.primary,
-                size: 18,
-              ),
+              icon: const Icon(Icons.assignment_outlined,
+                  color: AppColors.primary, size: 18),
               label: const Text(
                 'Laksanakan Tugas Inspeksi',
                 style: TextStyle(
@@ -261,7 +374,8 @@ class _DashboardPageState extends State<DashboardPage> {
         children: [
           StatCard(
             label: 'Pendapatan\n(Selesai)',
-            value: 'Rp. ${statistik['pendapatan_selesai']}',
+            // ← format rupiah
+            value: CurrencyFormat.toRupiah(statistik['pendapatan_selesai']),
             icon: Icons.wallet_outlined,
             iconBg: AppColors.yellow.withOpacity(0.2),
             iconColor: AppColors.yellow,
@@ -269,7 +383,7 @@ class _DashboardPageState extends State<DashboardPage> {
           const SizedBox(width: 12),
           StatCard(
             label: 'Total Tugas',
-            value: '${statistik['total_tugas']}',
+            value: '${statistik['total_tugas'] ?? 0}',
             icon: Icons.list_alt_outlined,
             iconBg: AppColors.primary.withOpacity(0.1),
             iconColor: AppColors.primary,
@@ -277,7 +391,7 @@ class _DashboardPageState extends State<DashboardPage> {
           const SizedBox(width: 12),
           StatCard(
             label: 'Inspeksi\nSelesai',
-            value: '${statistik['inspeksi_selesai']}',
+            value: '${statistik['inspeksi_selesai'] ?? 0}',
             icon: Icons.check_circle_outline_rounded,
             iconBg: const Color(0xFF2ECC71).withOpacity(0.15),
             iconColor: const Color(0xFF2ECC71),
@@ -287,7 +401,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // ── TRANSACTION LIST ──────────────────────────────────────────
+  // ── TRANSACTION LIST — card fixed, isi yang scroll ────────────
   Widget _buildTransactionList(List riwayat) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -305,8 +419,9 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Judul — padding bawah 0 supaya tidak ada jarak ke list
           const Padding(
-            padding: EdgeInsets.fromLTRB(16, 18, 16, 4),
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Text(
               'Riwayat Share Cost Transaksi',
               style: TextStyle(
@@ -316,12 +431,18 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ),
           ),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: riwayat.length,
-            itemBuilder: (context, index) =>
-                TransactionCard(item: riwayat[index]),
+
+          // Divider tipis langsung di bawah judul
+          const Divider(height: 12, thickness: 0.5, color: Color(0xFFEEEEEE)),
+
+          // ListView yang scroll di dalam card
+          Expanded(
+            child: ListView.builder(
+              padding: EdgeInsets.zero,  // ← hapus padding default
+              itemCount: riwayat.length,
+              itemBuilder: (context, index) =>
+                  TransactionCard(item: riwayat[index]),
+            ),
           ),
         ],
       ),
@@ -334,6 +455,7 @@ class _DashboardPageState extends State<DashboardPage> {
       {'icon': Icons.speed_rounded, 'label': 'Dashboard'},
       {'icon': Icons.assignment_outlined, 'label': 'Tugas Saya'},
       {'icon': Icons.receipt_long_outlined, 'label': 'Slip Komisi'},
+      {'icon': Icons.logout_rounded, 'label': 'Logout'},
     ];
 
     return Container(
@@ -350,19 +472,36 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(items.length, (i) {
               final isActive = _currentIndex == i;
+              final isLogout = i == 3;
+
               return GestureDetector(
-                onTap: () => setState(() => _currentIndex = i),
+                onTap: () {
+                  if (isLogout) {
+                    handleLogout();
+                    return;
+                  }
+
+                  setState(() => _currentIndex = i);
+
+                  // 🔥 NAVIGASI
+                  if (i == 1) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const TugasPage(),
+                      ),
+                    );
+                  }
+                },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 6,
-                  ),
+                      horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: isActive
                         ? AppColors.yellow.withOpacity(0.15)
@@ -372,20 +511,23 @@ class _DashboardPageState extends State<DashboardPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Icon dengan bubble kuning kalau aktif
                       Container(
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: isActive
+                          color: isLogout
+                              ? Colors.red.withOpacity(0.15)
+                              : isActive
                               ? AppColors.yellow
                               : Colors.transparent,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           items[i]['icon'] as IconData,
-                          size: 22,
-                          color: isActive
+                          size: 20,
+                          color: isLogout
+                              ? Colors.red.shade300
+                              : isActive
                               ? AppColors.primaryDark
                               : Colors.white54,
                         ),
@@ -398,7 +540,9 @@ class _DashboardPageState extends State<DashboardPage> {
                           fontWeight: isActive
                               ? FontWeight.w700
                               : FontWeight.w400,
-                          color: isActive
+                          color: isLogout
+                              ? Colors.red.shade300
+                              : isActive
                               ? Colors.white
                               : Colors.white54,
                         ),

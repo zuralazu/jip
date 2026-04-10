@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'frontend/pages/dashboard/dashboard_page.dart';
 import 'frontend/pages/splash/splash_page.dart';
 import 'frontend/pages/login/login_page.dart';
+import 'frontend/pages/tugas/tugas_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +27,8 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const SplashPage(),
         '/login': (context) => const LoginPage(),
+        '/dashboard':    (context) => const DashboardPage(),
+        '/tugas':        (context) => const TugasPage(),
       },
     );
   }

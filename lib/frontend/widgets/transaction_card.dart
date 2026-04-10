@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/colors.dart';
+import '../utils/currency_format.dart';
 import 'status_badge.dart';
 
 class TransactionCard extends StatelessWidget {
@@ -19,7 +20,6 @@ class TransactionCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Kiri: info transaksi
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -34,7 +34,7 @@ class TransactionCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Rp. ${item['nominal'] ?? '0'} (${item['metode_bayar'] ?? '-'})',
+                  '${CurrencyFormat.toRupiah(item['komisi_rp'])} (${item['metode_bayar'] ?? '-'})',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.green,
@@ -52,10 +52,7 @@ class TransactionCard extends StatelessWidget {
               ],
             ),
           ),
-
           const SizedBox(width: 12),
-
-          // Kanan: Order ID + Badge
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
