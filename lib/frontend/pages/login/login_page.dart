@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/base_page.dart';
 import '../../utils/colors.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
@@ -13,7 +14,7 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> with BasePage {
 
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -23,30 +24,68 @@ class _LoginPageState extends State<LoginPage> {
   void handleLogin() async {
     setState(() => isLoading = true);
 
-    final result = await ApiService.login(
-      email: emailController.text,
-      password: passwordController.text,
-    );
-
-    setState(() => isLoading = false);
-
-    if (result["statusCode"] == 200) {
-      final token = result["data"]["authorization"]["access_token"];
-
-      print("TOKEN LOGIN: $token");
-
-      await AuthService.saveToken(token); // 🔥 WAJIB
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const DashboardPage(),
-        ),
+    try {
+      final result = await ApiService.login(
+        email: emailController.text,
+        password: passwordController.text,
       );
-    } else {
-      debugPrint("LOGIN GAGAL");
-      debugPrint(result["data"].toString());
+
+      final statusCode = result["statusCode"];
+
+      // 🔥 SUKSES LOGIN
+      if (statusCode == 200) {
+        final token = result["data"]["authorization"]["access_token"];
+
+        await AuthService.saveToken(token);
+
+        if (!mounted) return;
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const DashboardPage(),
+          ),
+        );
+      }
+
+      // 🔴 SALAH LOGIN
+      else if (statusCode == 401) {
+        _showMessage("Email atau password salah");
+      }
+
+      // 🔴 SERVER ERROR
+      else if (statusCode == 500) {
+        _showMessage("Server sedang bermasalah, coba lagi nanti");
+      }
+
+      // 🔴 DEFAULT
+      else {
+        _showMessage("Terjadi kesalahan (kode: $statusCode)");
+      }
+    } catch (e) {
+      // 🔥 HANDLE KHUSUS (kalau backend lempar error)
+      if (e.toString().contains("TOKEN_EXPIRED")) {
+        _showMessage("Sesi berakhir, silakan login kembali");
+      } else {
+        _showMessage("Tidak bisa terhubung ke server");
+      }
+
+      debugPrint("ERROR LOGIN: $e");
+    } finally {
+      // 🔥 INI PALING AMAN (pasti ke-set false)
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override

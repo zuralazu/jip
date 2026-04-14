@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../pages/tugas/detail_inspeksi_page.dart';
 import '../utils/colors.dart';
 
 class TugasCard extends StatelessWidget {
@@ -264,9 +265,16 @@ class TugasCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: urlLaporan.isNotEmpty
-                    ? () => _launchWeb(urlLaporan)
-                    : null,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DetailInspeksiPage(
+                        dataTugas: item,
+                      ),
+                    ),
+                  );
+                },
                 icon: const Icon(
                   Icons.edit_note_rounded,
                   color: AppColors.primary,
@@ -334,8 +342,8 @@ class _StatusBadge extends StatelessWidget {
 
     switch (status.toLowerCase()) {
       case 'proses inspeksi':
-        bg = const Color(0xFFF0F0F0);
-        fg = AppColors.textDark;
+        bg = AppColors.yellow;
+        fg = AppColors.primary;
         break;
       case 'selesai':
         bg = const Color(0xFFE6F9F0);

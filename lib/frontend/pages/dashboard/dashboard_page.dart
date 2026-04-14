@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/base_page.dart';
 import '../../services/api_service.dart';
 import '../../utils/colors.dart';
 import '../../utils/currency_format.dart';
@@ -14,7 +15,8 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _DashboardPageState extends State<DashboardPage>
+    with BasePage {
   Map<String, dynamic>? dashboardData;
   bool isLoading = true;
   String? errorMessage;
@@ -27,36 +29,32 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void fetchDashboard() async {
-    final result = await ApiService.getDashboard();
-    if (result["statusCode"] == 200) {
-      final data = result["data"];
-      final extracted = data["data"] ?? data;
+    try {
+      final result = await ApiService.getDashboard();
 
-      print("FULL RESPONSE:");
-      print(result["data"]);
-      print("TYPE DATA:");
-      print(result["data"].runtimeType);
+      if (result["statusCode"] == 200) {
+        final data = result["data"];
+        final extracted = data["data"] ?? data;
 
-      print("EXTRACTED:");
-      print(data["data"]);
-      print(data["data"]?.runtimeType);
-
-      if (extracted != null) {
-        setState(() {
-          dashboardData = extracted;
-          isLoading = false;
-        });
+        if (extracted != null) {
+          setState(() {
+            dashboardData = extracted;
+            isLoading = false;
+          });
+        } else {
+          setState(() {
+            errorMessage = 'Struktur data tidak sesuai';
+            isLoading = false;
+          });
+        }
       } else {
         setState(() {
-          errorMessage = 'Struktur data tidak sesuai';
+          errorMessage = 'Gagal memuat data (${result["statusCode"]})';
           isLoading = false;
         });
       }
-    } else {
-      setState(() {
-        errorMessage = 'Gagal memuat data (${result["statusCode"]})';
-        isLoading = false;
-      });
+    } catch (e) {
+      handleApiError(e);
     }
   }
 
