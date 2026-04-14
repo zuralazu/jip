@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/base_page.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../utils/colors.dart';
@@ -11,7 +12,8 @@ class TugasPage extends StatefulWidget {
   State<TugasPage> createState() => _TugasPageState();
 }
 
-class _TugasPageState extends State<TugasPage> {
+class _TugasPageState extends State<TugasPage>
+    with BasePage {
   List tugasList = [];
   bool isLoading = true;
   int _currentIndex = 1; // Tugas Saya = index 1
@@ -23,25 +25,37 @@ class _TugasPageState extends State<TugasPage> {
   }
 
   void fetchTugas() async {
-    final result = await ApiService.getTugas();
-    if (result["statusCode"] == 200) {
-      final body = result["data"];
-      if (body is Map<String, dynamic> && body["data"] is List) {
-        setState(() {
-          tugasList = body["data"];
-          isLoading = false;
-        });
+    try {
+      final result = await ApiService.getTugas();
+
+      if (result["statusCode"] == 200) {
+        final body = result["data"];
+
+        if (body is Map<String, dynamic> && body["data"] is List) {
+          setState(() {
+            tugasList = body["data"];
+            isLoading = false;
+          });
+        } else {
+          setState(() {
+            tugasList = [];
+            isLoading = false;
+          });
+        }
       } else {
         setState(() {
           tugasList = [];
           isLoading = false;
         });
       }
-    } else {
-      setState(() {
-        tugasList = [];
-        isLoading = false;
-      });
+    } catch (e) {
+      handleApiError(e); // 🔥 AUTO HANDLE TOKEN EXPIRED
+
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
