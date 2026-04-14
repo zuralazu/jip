@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
@@ -7,6 +7,45 @@ import '../services/auth_service.dart';
 
 class ApiService {
   static String get baseUrl => AppConfig.baseUrl;
+
+  static Future<Map<String, dynamic>> register({
+    required String name,
+    required String email,
+    required String password,
+    required String noHp,
+    required String namaInstansi,
+    required String alamat,
+    File? logoInstansi,
+  }) async {
+    var uri = Uri.parse('$baseUrl/register');
+    var request = http.MultipartRequest('POST', uri);
+
+    request.headers['Accept'] = 'application/json';
+
+    request.fields['name'] = name;
+    request.fields['email'] = email;
+    request.fields['password'] = password;
+    request.fields['no_hp'] = noHp;
+    request.fields['nama_instansi'] = namaInstansi;
+    request.fields['alamat'] = alamat;
+    request.fields['role'] = 'inspektor';
+
+    if (logoInstansi != null) {
+      var multipartFile = await http.MultipartFile.fromPath(
+        'logo_instansi',
+        logoInstansi.path,
+      );
+      request.files.add(multipartFile);
+    }
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+
+    return {
+      "statusCode": response.statusCode,
+      "data": jsonDecode(response.body),
+    };
+  }
 
   static Future<Map<String, dynamic>> login({
     required String email,
