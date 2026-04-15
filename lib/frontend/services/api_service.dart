@@ -231,6 +231,33 @@ class ApiService {
     return _handleResponse(response);
   }
 
+  static Future<Map<String, dynamic>> getProfile() async {
+    final url = Uri.parse("$baseUrl/profile");
+
+    final token = await AuthService.getToken();
+
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
+
+    try {
+      final data = jsonDecode(response.body);
+      return {
+        "statusCode": response.statusCode,
+        "data": data,
+      };
+    } catch (e) {
+      return {
+        "statusCode": response.statusCode,
+        "data": response.body,
+      };
+    }
+  }
+
   static Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
     final statusCode = response.statusCode;
 

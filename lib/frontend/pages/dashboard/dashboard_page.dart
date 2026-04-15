@@ -7,6 +7,7 @@ import '../../widgets/stat_card.dart';
 import '../../widgets/transaction_card.dart';
 import '../../services/auth_service.dart';
 import '../tugas/tugas_page.dart';
+import '../../widgets/bottom_bar.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -244,7 +245,6 @@ class _DashboardPageState extends State<DashboardPage>
 
           const SizedBox(height: 8),
 
-          // Transaction list (Expanded → internal ListView yang scroll)
           Expanded(
             child: _buildTransactionList(riwayat),
           ),
@@ -252,11 +252,30 @@ class _DashboardPageState extends State<DashboardPage>
           const SizedBox(height: 8),
         ],
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: CustomBottomNav(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          if (index == _currentIndex) return;
+
+          switch (index) {
+            case 0:
+              Navigator.pushReplacementNamed(context, '/dashboard');
+              break;
+            case 1:
+              Navigator.pushReplacementNamed(context, '/tugas');
+              break;
+            case 2:
+              Navigator.pushReplacementNamed(context, '/slip-komisi');
+              break;
+            case 3:
+              Navigator.pushReplacementNamed(context, '/profile');
+              break;
+          }
+        },
+      ),
     );
   }
 
-  // ── HEADER BIRU ──────────────────────────────────────────────
   Widget _buildHeader(Map<String, dynamic> header) {
     return Container(
       width: double.infinity,

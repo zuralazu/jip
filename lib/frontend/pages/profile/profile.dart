@@ -5,58 +5,47 @@ import '../../services/auth_service.dart';
 import '../../utils/colors.dart';
 import '../../widgets/tugas_card.dart';
 import '../../widgets/bottom_bar.dart';
-import '../profile/profile.dart';
+import '../tugas/tugas_page.dart';
 
-class TugasPage extends StatefulWidget {
-  const TugasPage({super.key});
+class ProfilePage extends StatefulWidget {
+  const ProfilePage({super.key});
 
   @override
-  State<TugasPage> createState() => _TugasPageState();
+  State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _TugasPageState extends State<TugasPage>
+class _ProfilePageState extends State<ProfilePage>
     with BasePage {
-  List tugasList = [];
+  Map<String, dynamic>? profile;
   bool isLoading = true;
-  int _currentIndex = 1;
+  int _currentIndex = 3;
 
   @override
   void initState() {
     super.initState();
-    fetchTugas();
+    fetchProfile();
   }
 
-  void fetchTugas() async {
+  void fetchProfile() async {
     try {
-      final result = await ApiService.getTugas();
+      final result = await ApiService.getProfile();
 
       if (result["statusCode"] == 200) {
-        final body = result["data"];
-
-        if (body is Map<String, dynamic> && body["data"] is List) {
-          setState(() {
-            tugasList = body["data"];
-            isLoading = false;
-          });
-        } else {
-          setState(() {
-            tugasList = [];
-            isLoading = false;
-          });
-        }
+        setState(() {
+          profile = result["data"]["data"];
+          isLoading = false;
+        });
       } else {
         setState(() {
-          tugasList = [];
+          profile = null;
           isLoading = false;
         });
       }
     } catch (e) {
-      handleApiError(e); // 🔥 AUTO HANDLE TOKEN EXPIRED
+      handleApiError(e);
 
       if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
+        setState(() => isLoading = false);
       }
     }
   }
@@ -120,7 +109,7 @@ class _TugasPageState extends State<TugasPage>
         children: [
           const Expanded(
             child: Text(
-              'Tugas Inspeksi Saya',
+              'Profile',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -128,22 +117,6 @@ class _TugasPageState extends State<TugasPage>
               ),
             ),
           ),
-          if (!isLoading && tugasList.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '${tugasList.length} Tugas Aktif',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -156,39 +129,95 @@ class _TugasPageState extends State<TugasPage>
       );
     }
 
-    if (tugasList.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.assignment_outlined,
-                size: 64, color: Colors.grey.shade300),
-            const SizedBox(height: 16),
-            const Text(
-              'Belum ada tugas',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textGrey,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Tugas inspeksi kamu akan muncul di sini',
-              style: TextStyle(fontSize: 12, color: AppColors.textGrey),
-            ),
-          ],
-        ),
+    if (profile == null) {
+      return const Center(
+        child: Text("Gagal memuat data profile"),
       );
     }
 
+    final instansi = profile!["instansi"];
+
     return RefreshIndicator(
       color: AppColors.primary,
-      onRefresh: () async => fetchTugas(),
-      child: ListView.builder(
-        padding: const EdgeInsets.only(top: 12, bottom: 24),
-        itemCount: tugasList.length,
-        itemBuilder: (context, index) => TugasCard(item: tugasList[index]),
+      onRefresh: () async => fetchProfile(),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildItem("Nama", profile!["name"]),
+          _buildItem("Email", profile!["email"]),
+          _buildItem("Role", profile!["role"]),
+          _buildItem("No HP", profile!["no_hp"] ?? "-"),
+
+          const SizedBox(height: 24),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: handleLogout,
+              icon: const Icon(Icons.logout),
+              label: const Text("Logout"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+
+          if (instansi != null) ...[
+            const Text(
+              "Instansi",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildItem("Nama Instansi", instansi["nama_instansi"]),
+            _buildItem("Alamat", instansi["alamat"]),
+          ]
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItem(String label, String? value) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 4,
+          )
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.grey,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              value ?? "-",
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
