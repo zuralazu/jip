@@ -20,17 +20,35 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
   final Map<String, TextEditingController> controllers = {};
 
   void updateForm(String key, String value) {
-    widget.formData[key] = value;
-    widget.onChanged(widget.formData);
+    widget.formData[key] = value; // tetap string
+    widget.onChanged(Map<String, dynamic>.from(widget.formData));
   }
 
   TextEditingController _getController(String key) {
     if (!controllers.containsKey(key)) {
+      final value = widget.formData[key];
+
       controllers[key] = TextEditingController(
-        text: widget.formData[key] ?? "",
+        text: value?.toString() ?? "",
       );
     }
     return controllers[key]!;
+  }
+
+  @override
+  void didUpdateWidget(covariant InformasiMobilPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    widget.formData.forEach((key, value) {
+      if (controllers.containsKey(key)) {
+        final controller = controllers[key]!;
+        final newVal = value?.toString() ?? "";
+
+        if (controller.text != newVal) {
+          controller.text = newVal;
+        }
+      }
+    });
   }
 
   @override
@@ -82,6 +100,7 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
   }
 
   Widget _buildField(String label, String key, IconData icon) {
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(

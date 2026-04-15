@@ -176,6 +176,20 @@ class _LoginPageState extends State<LoginPage> with BasePage {
 
               const SizedBox(height: 10),
 
+              Center(
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const RegisterPage()),
+                    );
+                  },
+                  child: Text(
+                    "Pengguna baru? klik disini untuk registrasi",
+                    style: TextStyle(
+                      color: Colors.black.withOpacity(0.4),
+                      fontSize: 16,
               Align(
                 alignment: Alignment.centerRight,
                 child: GestureDetector(
@@ -194,6 +208,14 @@ class _LoginPageState extends State<LoginPage> with BasePage {
 
               const SizedBox(height: 10),
 
+              Center(
+                child: GestureDetector(
+                  onTap: () {},
+                  child: Text(
+                    "Lupa password?",
+                    style: TextStyle(
+                      color: Colors.black.withOpacity(0.4),
+                      fontSize: 16,
               Align(
                 alignment: Alignment.centerRight,
                 child: GestureDetector(

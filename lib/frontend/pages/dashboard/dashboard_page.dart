@@ -453,7 +453,7 @@ class _DashboardPageState extends State<DashboardPage>
       {'icon': Icons.speed_rounded, 'label': 'Dashboard'},
       {'icon': Icons.assignment_outlined, 'label': 'Tugas Saya'},
       {'icon': Icons.receipt_long_outlined, 'label': 'Slip Komisi'},
-      {'icon': Icons.logout_rounded, 'label': 'Logout'},
+      {'icon': Icons.logout_rounded, 'label': 'Profile'},
     ];
 
     return Container(

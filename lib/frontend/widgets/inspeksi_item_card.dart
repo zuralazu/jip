@@ -11,8 +11,9 @@ class InspeksiItemCard extends StatefulWidget {
   final Map<String, dynamic>? formData;
   final String? fieldKey;
   final Function(dynamic)? onChanged;
+  final String section;
 
-  const InspeksiItemCard({super.key, required this.namaItem,this.formData, this.fieldKey, this.onChanged,});
+  const InspeksiItemCard({super.key, required this.namaItem,this.formData, this.fieldKey, this.onChanged, required this.section,});
 
   @override
   State<InspeksiItemCard> createState() => _InspeksiItemCardState();
@@ -89,15 +90,13 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
     if (widget.formData != null && widget.fieldKey != null) {
       final safeMap = Map<String, dynamic>.from(widget.formData!);
 
-      safeMap[widget.fieldKey!] = Map<String, dynamic>.from(data);
+      safeMap[widget.fieldKey!] = data;
 
       widget.formData!.clear();
       widget.formData!.addAll(safeMap);
     }
 
-    if (widget.onChanged != null) {
-      widget.onChanged!(data);
-    }
+    widget.onChanged?.call(data); // 🔥 kirim item saja, bukan full form
   }
 
   Widget build(BuildContext context) {
@@ -192,10 +191,24 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
 
                     // 🔥 SIMPAN
                     if (widget.formData != null && widget.fieldKey != null) {
-                      widget.formData![widget.fieldKey!] = {
-                        "kondisi": kondisi,
-                        "showKerusakan": showKerusakan,
-                      };
+                      final existing = Map<String, dynamic>.from(
+                        widget.formData![widget.fieldKey!] ?? {},
+                      );
+
+                      existing["kondisi"] = kondisi;
+                      existing["showKerusakan"] = showKerusakan;
+
+                      final safeMap = Map<String, dynamic>.from(widget.formData!);
+
+                      safeMap[widget.section] ??= {};
+                      final sectionMap = Map<String, dynamic>.from(safeMap[widget.section]);
+
+                      sectionMap[widget.fieldKey!] = existing;
+
+                      safeMap[widget.section] = sectionMap;
+
+                      widget.formData!.clear();
+                      widget.formData!.addAll(safeMap);
                     }
                   },
                   child: Container(
@@ -436,8 +449,11 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
 
   Map<String, dynamic> get itemData {
     if (widget.formData != null && widget.fieldKey != null) {
-      return Map<String, dynamic>.from(
-          widget.formData![widget.fieldKey] ?? {});
+      final raw = widget.formData?[widget.fieldKey];
+      if (raw == null) return {};
+      if (raw is Map<String, dynamic>) return raw;
+      if (raw is Map) return raw.map((k, v) => MapEntry(k.toString(), v));
+      return {};
     }
     return {};
   }

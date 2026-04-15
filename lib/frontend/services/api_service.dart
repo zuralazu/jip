@@ -47,38 +47,6 @@ class ApiService {
     };
   }
 
-  static Future<Map<String, dynamic>> lupaPassword({
-    required String email,
-    required String password,
-    required String confirm_password,
-}) async{
-    final url = Uri.parse("$baseUrl/lupa-password");
-
-    final response = await http.post(
-      url,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: jsonEncode({
-        "email": email,
-        "password": password,
-        "confirm_password": confirm_password,
-      }),
-    );
-    try {
-      final data = jsonDecode(response.body);
-      return {
-        "statusCode": response.statusCode,
-        "data": data,
-      };
-    } catch (e) {
-      return {
-        "statusCode": response.statusCode,
-        "data": response.body,
-      };
-    }
-  }
-
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -236,25 +204,25 @@ class ApiService {
 
     print("=== API DEBUG ===");
     print("STATUS: $statusCode");
-    print("BODY LENGTH: ${response.body.length}");
+    print("BODY: ${response.body}");
 
     dynamic data;
-
     try {
       data = jsonDecode(response.body);
     } catch (e) {
-      print("JSON ERROR: $e");
-
-      // 🔥 fallback: jangan langsung gagal
-      return {
-        "statusCode": statusCode,
-        "data": response.body,
-      };
+      return {"statusCode": statusCode, "data": response.body};
     }
 
     if (statusCode == 401) {
       await AuthService.logout();
       throw Exception("UNAUTHORIZED");
+    }
+
+    if (statusCode == 422) {
+      // 🔥 Tampilkan field mana yang gagal validasi
+      final errors = data["errors"];
+      print("VALIDATION ERRORS: $errors");
+      throw Exception("VALIDATION_ERROR: $errors");
     }
 
     if (statusCode >= 500) {
@@ -265,22 +233,80 @@ class ApiService {
       throw Exception(data["message"] ?? "UNKNOWN_ERROR");
     }
 
-    return {
-      "statusCode": statusCode,
-      "data": data,
-    };
+    return {"statusCode": statusCode, "data": data};
+  }
+
+  static Future<List<dynamic>> getKategoriItems() async {
+    final token = await AuthService.getToken();
+
+    final response = await http.get(
+      Uri.parse("$baseUrl/master/kategori-items"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Accept": "application/json", // 🔥 TAMBAH INI
+      },
+    );
+
+    print("=== KATEGORI ITEMS ===");
+    print("STATUS: ${response.statusCode}");
+    print("URL: $baseUrl/master/kategori-items");
+
+    if (response.statusCode != 200) {
+      throw Exception("Gagal load kategori: ${response.statusCode}");
+    }
+
+    final result = await _handleResponse(response);
+    return result["data"]["data"];
+  }
+
+  static Future<Map<String, dynamic>> getInformasi(int orderId) async {
+    final token = await AuthService.getToken();
+
+    final response = await http.get(
+      Uri.parse("$baseUrl/tugas/$orderId/informasi"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Accept": "application/json",
+      },
+    );
+
+    final result = await _handleResponse(response);
+
+    return result;
   }
 
   static Future saveInformasi(int orderId, Map data) async {
     final token = await AuthService.getToken();
 
+    // 🔥 DEBUG: lihat data yang dikirim
+    print("=== SAVE INFORMASI ===");
+    print("ORDER ID: $orderId");
+    print("DATA: $data");
+
     final response = await http.post(
       Uri.parse("$baseUrl/tugas/$orderId/informasi"),
       headers: {
         "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+        "Accept": "application/json",  // 🔥 TAMBAH INI
       },
-      body: data,
+      body: jsonEncode({
+        "nomor_polisi":    data["nomor_polisi"]?.toString() ?? "",
+        "tipe_mobil":      data["tipe_mobil"]?.toString() ?? "",
+        "transmisi":       data["transmisi"]?.toString() ?? "",
+        "kapasitas_mesin": int.tryParse(data["kapasitas_mesin"]?.toString() ?? "0") ?? 0,
+        "bahan_bakar":     data["bahan_bakar"]?.toString() ?? "",
+        "warna_mobil":     data["warna_mobil"]?.toString() ?? "",
+        "jarak_tempuh":    int.tryParse(data["jarak_tempuh"]?.toString() ?? "0") ?? 0,
+        "kondisi_tabrak":  data["kondisi_tabrak"]?.toString() ?? "",
+        "kondisi_banjir":  data["kondisi_banjir"]?.toString() ?? "",
+        "catatan_tambahan": data["catatan_tambahan"]?.toString() ?? "",
+      }),
     );
+
+    // 🔥 DEBUG: lihat full response
+    print("STATUS: ${response.statusCode}");
+    print("BODY: ${response.body}");
 
     return _handleResponse(response);
   }
@@ -288,27 +314,42 @@ class ApiService {
   static Future saveDokumen(int orderId, Map data) async {
     final token = await AuthService.getToken();
 
+    print("=== SAVE DOKUMEN ===");
+    print("DATA KEYS: ${data.keys.toList()}");
+    print("foto_stnk: ${data['foto_stnk']}");
+    print("nomor_rangka: ${data['nomor_rangka']}");
+
     final request = http.MultipartRequest(
       "POST",
       Uri.parse("$baseUrl/tugas/$orderId/dokumen"),
     );
 
     request.headers["Authorization"] = "Bearer $token";
+    request.headers["Accept"] = "application/json";
 
-    // 🔥 SEMUA TEXT FIELD
-    data.forEach((key, value) {
-      if (value != null && !key.contains("foto")) {
-        request.fields[key] = value.toString();
-      }
-    });
+    // Kirim SEMUA text field (termasuk yang kosong sekalipun)
+    final textKeys = [
+      'pajak_1_tahun', 'pajak_5_tahun', 'pkb', 'nomor_rangka', 'nomor_mesin',
+      'nama_pemilik', 'nomor_bpkb', 'kepemilikan_mobil',
+      'sph', 'benang_pembatas', 'hologram_polri', 'faktur', 'nik', 'form_a',
+      'buku_service', 'buku_manual', 'cek_logo_scanner', 'kir', 'samsat_online',
+    ];
 
-    // 🔥 FILE
+    for (var key in textKeys) {
+      // Paksa kirim semua field, isi "" kalau null
+      request.fields[key] = data[key]?.toString() ?? "";
+    }
+
     Future<void> addFile(String key) async {
-      if (data[key] != null && data[key].toString().isNotEmpty) {
-        request.files.add(await http.MultipartFile.fromPath(
-          key,
-          data[key],
-        ));
+      final path = data[key];
+      if (path != null && path.toString().isNotEmpty) {
+        final file = File(path.toString());
+        if (await file.exists()) {
+          request.files.add(await http.MultipartFile.fromPath(key, path));
+          print("FILE ADDED: $key → $path");
+        } else {
+          print("FILE NOT FOUND: $key → $path");
+        }
       }
     }
 
@@ -321,45 +362,42 @@ class ApiService {
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);
 
+    print("STATUS: ${response.statusCode}");
+    print("BODY: ${response.body}");
+
     return _handleResponse(response);
   }
 
-  static int getItemId(String name) {
-    const map = {
-      "Dashboard": 1,
-      "Stir": 2,
-      "Handle Porsneling": 3,
-      "Doortrim": 4,
-      "Speedometer": 5,
-      "Kolong Stir": 6,
-      "Jok dan Kolong Jok": 7,
-      "Karpet": 8,
-      "Plafon dan Pilar": 9,
-      "Headunit": 10,
-      "Door Lock": 11,
-      "Power Window": 12,
-      "Elektrik Spion": 13,
-      "AC": 14,
-      "Airbag": 15,
-      "Sun Roof / Moon Roof": 16,
-    };
+  static Future<Map<String, dynamic>> getDokumen(int orderId) async {
+    final token = await AuthService.getToken();
 
-    return map[name] ?? 0;
+    final response = await http.get(
+      Uri.parse('$baseUrl/tugas/$orderId/dokumen'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    return _handleResponse(response);
   }
 
   static Future<void> saveInterior(
       int orderId,
-      Map<String, dynamic> data,
+      Map<String, dynamic> data, {bool isFinal = false,}
       ) async {
+
     final token = await AuthService.getToken();
 
     final interior = data["interior"] ?? {};
 
     for (var entry in interior.entries) {
-      final itemName = entry.key;
-      final itemData = entry.value;
+      final itemId = entry.key;
 
-      final itemId = getItemId(itemName); // 🔥 mapping nama ke ID
+      // 🔥 skip kalau bukan angka
+      if (int.tryParse(itemId) == null) continue;
+
+      final itemData = entry.value;
 
       final request = http.MultipartRequest(
         "POST",
@@ -368,20 +406,17 @@ class ApiService {
 
       request.headers["Authorization"] = "Bearer $token";
 
-      // TEXT
       request.fields["kondisi"] = itemData["kondisi"] ?? "normal";
       request.fields["catatan"] = itemData["catatan"] ?? "";
-      request.fields["is_draft"] = "1";
+      request.fields["is_draft"] = isFinal ? "0" : "1";
 
-      // FOTO UTAMA
-      if (itemData["foto"] != null) {
+      if (itemData["foto"] != null && itemData["foto"].toString().isNotEmpty){
         request.files.add(await http.MultipartFile.fromPath(
           "foto_utama",
           itemData["foto"],
         ));
       }
 
-      // FOTO TAMBAHAN
       if (itemData["foto_kerusakan"] != null) {
         for (var path in itemData["foto_kerusakan"]) {
           request.files.add(await http.MultipartFile.fromPath(
@@ -391,15 +426,174 @@ class ApiService {
         }
       }
 
-      final response = await request.send();
-      final res = await http.Response.fromStream(response);
+      final res = await http.Response.fromStream(await request.send());
 
-      print("ITEM: $itemName");
+      print("INTERIOR ITEM ID: $itemId");
       print("STATUS: ${res.statusCode}");
-      print("BODY: ${res.body}");
 
       if (res.statusCode != 200) {
-        throw Exception("Gagal simpan item $itemName");
+        throw Exception("Gagal simpan interior item $itemId");
+      }
+    }
+  }
+
+  static Future<void> saveEksterior(
+      int orderId,
+      Map<String, dynamic> data,{bool isFinal = false,}
+      ) async {
+    final token = await AuthService.getToken();
+
+    final eksterior = data["eksterior"] ?? {};
+
+    for (var entry in eksterior.entries) {
+      final itemId = entry.key;
+
+      // ❗ WAJIB: skip kalau masih temp
+      if (int.tryParse(itemId) == null) continue;
+
+      final itemData = entry.value;
+
+      final request = http.MultipartRequest(
+        "POST",
+        Uri.parse("$baseUrl/tugas/$orderId/eksterior/$itemId"),
+      );
+
+      request.headers["Authorization"] = "Bearer $token";
+
+      request.fields["kondisi"] = itemData["kondisi"] ?? "normal";
+      request.fields["catatan"] = itemData["catatan"] ?? "";
+      request.fields["is_draft"] = isFinal ? "0" : "1";
+
+      if (itemData["foto"] != null && itemData["foto"].toString().isNotEmpty) {
+        request.files.add(await http.MultipartFile.fromPath(
+          "foto_utama",
+          itemData["foto"],
+        ));
+      }
+
+      if (itemData["foto_kerusakan"] != null) {
+        for (var path in itemData["foto_kerusakan"]) {
+          request.files.add(await http.MultipartFile.fromPath(
+            "foto_tambahan[]",
+            path,
+          ));
+        }
+      }
+
+      final res = await http.Response.fromStream(await request.send());
+
+      print("EKSTERIOR ITEM ID: $itemId");
+      print("STATUS: ${res.statusCode}");
+
+      if (res.statusCode != 200) {
+        throw Exception("Gagal simpan eksterior item $itemId");
+      }
+    }
+  }
+
+  static Future<void> saveMesin(
+      int orderId,
+      Map<String, dynamic> data, {bool isFinal = false,}
+      ) async {
+    final token = await AuthService.getToken();
+
+    final mesin = data["mesin"] ?? {};
+
+    for (var entry in mesin.entries) {
+      final itemId = entry.key;
+
+      // ❗ skip kalau bukan angka (biar gak kirim "Bullhead Depan")
+      if (int.tryParse(itemId) == null) continue;
+
+      final itemData = entry.value;
+
+      final request = http.MultipartRequest(
+        "POST",
+        Uri.parse("$baseUrl/tugas/$orderId/mesin/$itemId"),
+      );
+
+      request.headers["Authorization"] = "Bearer $token";
+
+      request.fields["kondisi"] = itemData["kondisi"] ?? "normal";
+      request.fields["catatan"] = itemData["catatan"] ?? "";
+      request.fields["is_draft"] = isFinal ? "0" : "1";
+
+      if (itemData["foto"] != null && itemData["foto"].toString().isNotEmpty) {
+        request.files.add(await http.MultipartFile.fromPath(
+          "foto_utama",
+          itemData["foto"],
+        ));
+      }
+
+      if (itemData["foto_kerusakan"] != null) {
+        for (var path in itemData["foto_kerusakan"]) {
+          request.files.add(await http.MultipartFile.fromPath(
+            "foto_tambahan[]",
+            path,
+          ));
+        }
+      }
+
+      final res = await http.Response.fromStream(await request.send());
+
+      print("MESIN ITEM ID: $itemId");
+      print("STATUS: ${res.statusCode}");
+
+      if (res.statusCode != 200) {
+        throw Exception("Gagal simpan mesin item $itemId");
+      }
+    }
+  }
+
+  static Future<void> saveKakiKaki(
+      int orderId,
+      Map<String, dynamic> data, {bool isFinal = false,}
+      ) async {
+    final token = await AuthService.getToken();
+
+    final kaki = data["kaki_kaki"] ?? {};
+
+    for (var entry in kaki.entries) {
+      final itemId = entry.key;
+
+      if (int.tryParse(itemId) == null) continue;
+
+      final itemData = entry.value;
+
+      final request = http.MultipartRequest(
+        "POST",
+        Uri.parse("$baseUrl/tugas/$orderId/kaki-kaki/$itemId"),
+      );
+
+      request.headers["Authorization"] = "Bearer $token";
+
+      request.fields["kondisi"] = itemData["kondisi"] ?? "normal";
+      request.fields["catatan"] = itemData["catatan"] ?? "";
+      request.fields["is_draft"] = isFinal ? "0" : "1";
+
+      if (itemData["foto"] != null && itemData["foto"].toString().isNotEmpty){
+        request.files.add(await http.MultipartFile.fromPath(
+          "foto_utama",
+          itemData["foto"],
+        ));
+      }
+
+      if (itemData["foto_kerusakan"] != null) {
+        for (var path in itemData["foto_kerusakan"]) {
+          request.files.add(await http.MultipartFile.fromPath(
+            "foto_tambahan[]",
+            path,
+          ));
+        }
+      }
+
+      final res = await http.Response.fromStream(await request.send());
+
+      print("KAKI KAKI ITEM ID: $itemId");
+      print("STATUS: ${res.statusCode}");
+
+      if (res.statusCode != 200) {
+        throw Exception("Gagal simpan kaki-kaki item $itemId");
       }
     }
   }

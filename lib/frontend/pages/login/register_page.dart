@@ -107,6 +107,7 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
             children: [
               const SizedBox(height: 32),
 
+              // LOGO
               Image.asset(
                 'assets/images/logo.png',
                 width: 140,
@@ -114,6 +115,7 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
 
               const SizedBox(height: 32),
 
+              // CARD
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
@@ -150,6 +152,7 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
                     ),
                     const SizedBox(height: 12),
 
+                    // 🔥 Diperbaiki: isPassword dihapus, icon diganti
                     CustomTextField(
                       hint: "Email",
                       controller: emailController,
@@ -165,6 +168,7 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
                     ),
                     const SizedBox(height: 12),
 
+                    // 🔥 Diperbaiki: controller diganti, isPassword dihapus, icon diganti
                     CustomTextField(
                       hint: "Nomor Handphone",
                       controller: nohpController,
@@ -172,6 +176,7 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
                     ),
                     const SizedBox(height: 12),
 
+                    // 🔥 Diperbaiki: controller diganti, isPassword dihapus, icon diganti
                     CustomTextField(
                       hint: "Nama Instansi",
                       controller: namaInstansiController,
@@ -179,6 +184,7 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
                     ),
                     const SizedBox(height: 12),
 
+                    // 🔥 Diperbaiki: controller diganti, isPassword dihapus, icon diganti
                     CustomTextField(
                       hint: "Alamat Instansi",
                       controller: alamatController,
@@ -220,6 +226,7 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
 
                     const SizedBox(height: 32),
 
+                    // BUTTON REGISTRASI
                     isLoading
                         ? const Center(
                       child: CircularProgressIndicator(color: Colors.white),
@@ -231,6 +238,7 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
 
                     const SizedBox(height: 24),
 
+                    // 🔥 Diperbaiki: Mengarahkan ke halaman Login
                     Align(
                       alignment: Alignment.center,
                       child: GestureDetector(
@@ -267,6 +275,7 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
               const SizedBox(height: 32),
 
               Text(
+                "© 2025 JIM Pekanbaru", // 🔥 Typo copyright diperbaiki
                 "© 2025 JIM Pekanbaru",
                 style: TextStyle(
                   color: Colors.grey[400],

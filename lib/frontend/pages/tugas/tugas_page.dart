@@ -180,10 +180,14 @@ class _TugasPageState extends State<TugasPage>
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: () async => fetchTugas(),
+      // Di dalam _TugasPageState, ganti ListView.builder jadi ini:
       child: ListView.builder(
         padding: const EdgeInsets.only(top: 12, bottom: 24),
         itemCount: tugasList.length,
-        itemBuilder: (context, index) => TugasCard(item: tugasList[index]),
+        itemBuilder: (context, index) => TugasCard(
+          item: tugasList[index],
+          onNavigateBack: fetchTugas, // 🔥 refresh list setelah balik dari detail
+        ),
       ),
     );
   }
