@@ -17,13 +17,25 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> with BasePage {
-
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   bool isLoading = false;
 
+  @override
+  void dispose() {
+    // 🔥 Fix: Selalu dispose controller untuk menghindari memory leak
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
   void handleLogin() async {
+    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+      _showMessage("Email dan password tidak boleh kosong");
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
@@ -34,47 +46,31 @@ class _LoginPageState extends State<LoginPage> with BasePage {
 
       final statusCode = result["statusCode"];
 
-      // 🔥 SUKSES LOGIN
       if (statusCode == 200) {
         final token = result["data"]["authorization"]["access_token"];
-
         await AuthService.saveToken(token);
 
         if (!mounted) return;
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (_) => const DashboardPage(),
-          ),
+          MaterialPageRoute(builder: (_) => const DashboardPage()),
         );
-      }
-
-      // 🔴 SALAH LOGIN
-      else if (statusCode == 401) {
+      } else if (statusCode == 401) {
         _showMessage("Email atau password salah");
-      }
-
-      // 🔴 SERVER ERROR
-      else if (statusCode == 500) {
+      } else if (statusCode == 500) {
         _showMessage("Server sedang bermasalah, coba lagi nanti");
-      }
-
-      // 🔴 DEFAULT
-      else {
+      } else {
         _showMessage("Terjadi kesalahan (kode: $statusCode)");
       }
     } catch (e) {
-      // 🔥 HANDLE KHUSUS (kalau backend lempar error)
       if (e.toString().contains("TOKEN_EXPIRED")) {
         _showMessage("Sesi berakhir, silakan login kembali");
       } else {
         _showMessage("Tidak bisa terhubung ke server");
       }
-
       debugPrint("ERROR LOGIN: $e");
     } finally {
-      // 🔥 INI PALING AMAN (pasti ke-set false)
       if (mounted) {
         setState(() => isLoading = false);
       }
@@ -98,24 +94,20 @@ class _LoginPageState extends State<LoginPage> with BasePage {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              const SizedBox(height: 48),
+              const SizedBox(height: 60),
 
               // LOGO
-              Column(
-                children: [
-                  Image.asset(
-                    'assets/images/logo.png',
-                    width: 140,
-                  ),
-                ],
+              Image.asset(
+                'assets/images/logo.png',
+                width: 140,
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 48),
 
-              // CARD
+              // CARD LOGIN
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(24),
@@ -140,18 +132,19 @@ class _LoginPageState extends State<LoginPage> with BasePage {
                       ),
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
 
-                    // 🔥 EMAIL (UI SAMA)
+                    // EMAIL
                     CustomTextField(
                       hint: "Email",
                       controller: emailController,
-                      prefixIcon: Icons.person_outline_rounded,
+                      prefixIcon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
                     ),
 
-                    const SizedBox(height: 13),
+                    const SizedBox(height: 16),
 
-                    // 🔥 PASSWORD (UI SAMA)
+                    // PASSWORD
                     CustomTextField(
                       hint: "Password",
                       controller: passwordController,
@@ -159,9 +152,31 @@ class _LoginPageState extends State<LoginPage> with BasePage {
                       prefixIcon: Icons.lock_outline_rounded,
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
 
-                    // 🔥 BUTTON LOGIN
+                    // LUPA PASSWORD
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const LupaPassword()),
+                          );
+                        },
+                        child: Text(
+                          "Lupa password?",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.6),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // BUTTON LOGIN
                     isLoading
                         ? const Center(
                       child: CircularProgressIndicator(color: Colors.white),
@@ -170,72 +185,43 @@ class _LoginPageState extends State<LoginPage> with BasePage {
                       text: "Login",
                       onPressed: handleLogin,
                     ),
+
+                    const SizedBox(height: 24),
+
+                    // REGISTER LINK
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const RegisterPage()),
+                          );
+                        },
+                        child: RichText(
+                          text: TextSpan(
+                            text: "Pengguna baru? ",
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.6),
+                              fontSize: 13,
+                            ),
+                            children: const [
+                              TextSpan(
+                                text: "Registrasi di sini",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 10),
-
-              Center(
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const RegisterPage()),
-                    );
-                  },
-                  child: Text(
-                    "Pengguna baru? klik disini untuk registrasi",
-                    style: TextStyle(
-                      color: Colors.black.withOpacity(0.4),
-                      fontSize: 16,
-              Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const LupaPassword()));
-                  },
-                  child: Text(
-                    "Lupa password?",
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.4),
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              Center(
-                child: GestureDetector(
-                  onTap: () {},
-                  child: Text(
-                    "Lupa password?",
-                    style: TextStyle(
-                      color: Colors.black.withOpacity(0.4),
-                      fontSize: 16,
-              Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const RegisterPage()),
-                    );
-                  },
-                  child: Text(
-                    "Pengguna baru? klik disini untuk registrasi",
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.4),
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 32),
+              const SizedBox(height: 48),
 
               Text(
                 "© 2025 JIM Pekanbaru",
