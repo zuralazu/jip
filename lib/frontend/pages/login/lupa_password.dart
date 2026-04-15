@@ -7,34 +7,35 @@ import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../dashboard/dashboard_page.dart';
 import '../login/register_page.dart';
-import '../login/lupa_password.dart';
+import '../login/login_page.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class LupaPassword extends StatefulWidget {
+  const LupaPassword({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<LupaPassword> createState() => _LupaPasswordState();
 }
 
-class _LoginPageState extends State<LoginPage> with BasePage {
+class _LupaPasswordState extends State<LupaPassword> with BasePage {
 
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
 
   bool isLoading = false;
 
-  void handleLogin() async {
+  void handleLupaPassword() async {
     setState(() => isLoading = true);
 
     try {
-      final result = await ApiService.login(
+      final result = await ApiService.lupaPassword(
         email: emailController.text,
         password: passwordController.text,
+        confirm_password: confirmPasswordController.text,
       );
 
       final statusCode = result["statusCode"];
 
-      // 🔥 SUKSES LOGIN
       if (statusCode == 200) {
         final token = result["data"]["authorization"]["access_token"];
 
@@ -50,22 +51,18 @@ class _LoginPageState extends State<LoginPage> with BasePage {
         );
       }
 
-      // 🔴 SALAH LOGIN
       else if (statusCode == 401) {
         _showMessage("Email atau password salah");
       }
 
-      // 🔴 SERVER ERROR
       else if (statusCode == 500) {
         _showMessage("Server sedang bermasalah, coba lagi nanti");
       }
 
-      // 🔴 DEFAULT
       else {
         _showMessage("Terjadi kesalahan (kode: $statusCode)");
       }
     } catch (e) {
-      // 🔥 HANDLE KHUSUS (kalau backend lempar error)
       if (e.toString().contains("TOKEN_EXPIRED")) {
         _showMessage("Sesi berakhir, silakan login kembali");
       } else {
@@ -74,7 +71,6 @@ class _LoginPageState extends State<LoginPage> with BasePage {
 
       debugPrint("ERROR LOGIN: $e");
     } finally {
-      // 🔥 INI PALING AMAN (pasti ke-set false)
       if (mounted) {
         setState(() => isLoading = false);
       }
@@ -100,7 +96,6 @@ class _LoginPageState extends State<LoginPage> with BasePage {
             children: [
               const SizedBox(height: 48),
 
-              // LOGO
               Column(
                 children: [
                   Image.asset(
@@ -112,7 +107,6 @@ class _LoginPageState extends State<LoginPage> with BasePage {
 
               const SizedBox(height: 40),
 
-              // CARD
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
@@ -124,7 +118,7 @@ class _LoginPageState extends State<LoginPage> with BasePage {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "Login",
+                      "Ganti Password",
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 22,
@@ -133,7 +127,7 @@ class _LoginPageState extends State<LoginPage> with BasePage {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      "Selamat datang, silahkan login!",
+                      "Ganti Password Kamu dengan Melangkapi Inputan Kolom dibawah!",
                       style: TextStyle(
                         color: Colors.white54,
                         fontSize: 13,
@@ -142,7 +136,6 @@ class _LoginPageState extends State<LoginPage> with BasePage {
 
                     const SizedBox(height: 24),
 
-                    // 🔥 EMAIL (UI SAMA)
                     CustomTextField(
                       hint: "Email",
                       controller: emailController,
@@ -151,7 +144,6 @@ class _LoginPageState extends State<LoginPage> with BasePage {
 
                     const SizedBox(height: 13),
 
-                    // 🔥 PASSWORD (UI SAMA)
                     CustomTextField(
                       hint: "Password",
                       controller: passwordController,
@@ -159,16 +151,24 @@ class _LoginPageState extends State<LoginPage> with BasePage {
                       prefixIcon: Icons.lock_outline_rounded,
                     ),
 
+                    const SizedBox(height: 13),
+
+                    CustomTextField(
+                      hint: "Konfirmasi Password",
+                      controller: confirmPasswordController,
+                      isPassword: true,
+                      prefixIcon: Icons.lock_outline_rounded,
+                    ),
+
                     const SizedBox(height: 20),
 
-                    // 🔥 BUTTON LOGIN
                     isLoading
                         ? const Center(
                       child: CircularProgressIndicator(color: Colors.white),
                     )
                         : CustomButton(
                       text: "Login",
-                      onPressed: handleLogin,
+                      onPressed: handleLupaPassword,
                     ),
                   ],
                 ),
@@ -176,57 +176,17 @@ class _LoginPageState extends State<LoginPage> with BasePage {
 
               const SizedBox(height: 10),
 
-              Center(
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const RegisterPage()),
-                    );
-                  },
-                  child: Text(
-                    "Pengguna baru? klik disini untuk registrasi",
-                    style: TextStyle(
-                      color: Colors.black.withOpacity(0.4),
-                      fontSize: 16,
-              Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const LupaPassword()));
-                  },
-                  child: Text(
-                    "Lupa password?",
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.4),
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              Center(
-                child: GestureDetector(
-                  onTap: () {},
-                  child: Text(
-                    "Lupa password?",
-                    style: TextStyle(
-                      color: Colors.black.withOpacity(0.4),
-                      fontSize: 16,
               Align(
                 alignment: Alignment.centerRight,
                 child: GestureDetector(
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const RegisterPage()),
+                      MaterialPageRoute(builder: (context) => const LoginPage()),
                     );
                   },
                   child: Text(
-                    "Pengguna baru? klik disini untuk registrasi",
+                    "Kembali",
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.4),
                       fontSize: 12,

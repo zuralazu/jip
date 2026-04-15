@@ -276,6 +276,7 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
 
               Text(
                 "© 2025 JIM Pekanbaru", // 🔥 Typo copyright diperbaiki
+                "© 2025 JIM Pekanbaru",
                 style: TextStyle(
                   color: Colors.grey[400],
                   fontSize: 11,
