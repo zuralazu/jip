@@ -47,6 +47,38 @@ class ApiService {
     };
   }
 
+  static Future<Map<String, dynamic>> lupaPassword({
+    required String email,
+    required String password,
+    required String confirm_password,
+}) async{
+    final url = Uri.parse("$baseUrl/lupa-password");
+
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "email": email,
+        "password": password,
+        "confirm_password": confirm_password,
+      }),
+    );
+    try {
+      final data = jsonDecode(response.body);
+      return {
+        "statusCode": response.statusCode,
+        "data": data,
+      };
+    } catch (e) {
+      return {
+        "statusCode": response.statusCode,
+        "data": response.body,
+      };
+    }
+  }
+
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
