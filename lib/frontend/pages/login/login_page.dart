@@ -6,6 +6,7 @@ import '../../widgets/custom_textfield.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../dashboard/dashboard_page.dart';
+import '../login/register_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -157,22 +158,6 @@ class _LoginPageState extends State<LoginPage> with BasePage {
                       prefixIcon: Icons.lock_outline_rounded,
                     ),
 
-                    const SizedBox(height: 10),
-
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: GestureDetector(
-                        onTap: () {},
-                        child: Text(
-                          "Lupa password?",
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.4),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-
                     const SizedBox(height: 20),
 
                     // 🔥 BUTTON LOGIN
@@ -185,6 +170,42 @@ class _LoginPageState extends State<LoginPage> with BasePage {
                       onPressed: handleLogin,
                     ),
                   ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Center(
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const RegisterPage()),
+                    );
+                  },
+                  child: Text(
+                    "Pengguna baru? klik disini untuk registrasi",
+                    style: TextStyle(
+                      color: Colors.black.withOpacity(0.4),
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Center(
+                child: GestureDetector(
+                  onTap: () {},
+                  child: Text(
+                    "Lupa password?",
+                    style: TextStyle(
+                      color: Colors.black.withOpacity(0.4),
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
               ),
 

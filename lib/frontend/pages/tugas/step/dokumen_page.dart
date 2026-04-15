@@ -19,6 +19,7 @@ class DokumenPage extends StatefulWidget {
 }
 
 class _DokumenPageState extends State<DokumenPage> {
+  final Map<String, TextEditingController> _controllers = {};
 
   File? getImage(String key) {
     final path = widget.formData[key];
@@ -27,15 +28,50 @@ class _DokumenPageState extends State<DokumenPage> {
   }
 
   TextEditingController _getController(String key) {
-    return TextEditingController(
-      text: widget.formData[key] ?? "",
-    );
+    if (!_controllers.containsKey(key)) {
+      _controllers[key] = TextEditingController(
+        text: widget.formData[key] ?? "",
+      );
+    }
+    return _controllers[key]!;
   }
 
+  @override
+  void didUpdateWidget(covariant DokumenPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    widget.formData.forEach((key, value) {
+      if (_controllers.containsKey(key)) {
+        final controller = _controllers[key]!;
+        if (controller.text != (value ?? "")) {
+          controller.text = value ?? "";
+        }
+      }
+    });
+  }
+
+  // TextEditingController _getController(String key) {
+  //   return TextEditingController(
+  //     text: widget.formData[key] ?? "",
+  //   );
+  // }
+
   void updateForm(String key, dynamic value) {
-    widget.formData[key] = value;
+    setState(() {
+      widget.formData[key] = value;
+    });
     widget.onChanged(widget.formData);
   }
+
+  @override
+  void dispose() {
+    for (var c in _controllers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -168,9 +204,7 @@ class _DokumenPageState extends State<DokumenPage> {
   }
 
   Widget _buildDateField(String label, String key) {
-    final controller = TextEditingController(
-      text: widget.formData[key] ?? "",
-    );
+    final controller = _getController(key);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),

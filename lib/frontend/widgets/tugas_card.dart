@@ -5,8 +5,9 @@ import '../utils/colors.dart';
 
 class TugasCard extends StatelessWidget {
   final Map<String, dynamic> item;
+  final VoidCallback? onNavigateBack;
 
-  const TugasCard({super.key, required this.item});
+  const TugasCard({super.key, required this.item, this.onNavigateBack,});
 
   void _launchWhatsApp(String noHp) async {
     final phone = noHp.replaceAll(RegExp(r'[^0-9]'), '');
@@ -269,11 +270,11 @@ class TugasCard extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => DetailInspeksiPage(
-                        dataTugas: item,
-                      ),
+                      builder: (_) => DetailInspeksiPage(dataTugas: item, orderId: item['order_id'],),
                     ),
-                  );
+                  ).then((_) {
+                    onNavigateBack?.call(); // 🔥 panggil callback setelah balik
+                  });
                 },
                 icon: const Icon(
                   Icons.edit_note_rounded,
