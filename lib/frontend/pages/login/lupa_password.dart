@@ -4,9 +4,6 @@ import '../../utils/colors.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
 import '../../services/api_service.dart';
-import '../../services/auth_service.dart';
-import '../dashboard/dashboard_page.dart';
-import '../login/register_page.dart';
 import '../login/login_page.dart';
 
 class LupaPassword extends StatefulWidget {
@@ -17,14 +14,33 @@ class LupaPassword extends StatefulWidget {
 }
 
 class _LupaPasswordState extends State<LupaPassword> with BasePage {
-
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
 
   bool isLoading = false;
 
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
+  }
+
   void handleLupaPassword() async {
+    if (emailController.text.isEmpty || 
+        passwordController.text.isEmpty || 
+        confirmPasswordController.text.isEmpty) {
+      _showMessage("Semua kolom wajib diisi");
+      return;
+    }
+
+    if (passwordController.text != confirmPasswordController.text) {
+      _showMessage("Konfirmasi password tidak cocok");
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
@@ -37,39 +53,23 @@ class _LupaPasswordState extends State<LupaPassword> with BasePage {
       final statusCode = result["statusCode"];
 
       if (statusCode == 200) {
-        final token = result["data"]["authorization"]["access_token"];
-
-        await AuthService.saveToken(token);
-
+        _showSuccessMessage("Password berhasil diperbarui! Silakan login kembali.");
+        
         if (!mounted) return;
-
-        Navigator.pushReplacement(
+        
+        Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(
-            builder: (_) => const DashboardPage(),
-          ),
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
         );
-      }
-
-      else if (statusCode == 401) {
-        _showMessage("Email atau password salah");
-      }
-
-      else if (statusCode == 500) {
-        _showMessage("Server sedang bermasalah, coba lagi nanti");
-      }
-
-      else {
+      } else if (statusCode == 401) {
+        _showMessage("Email tidak terdaftar atau data salah");
+      } else {
         _showMessage("Terjadi kesalahan (kode: $statusCode)");
       }
     } catch (e) {
-      if (e.toString().contains("TOKEN_EXPIRED")) {
-        _showMessage("Sesi berakhir, silakan login kembali");
-      } else {
-        _showMessage("Tidak bisa terhubung ke server");
-      }
-
-      debugPrint("ERROR LOGIN: $e");
+      _showMessage("Tidak bisa terhubung ke server");
+      debugPrint("ERROR LUPA PASSWORD: $e");
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -79,10 +79,13 @@ class _LupaPasswordState extends State<LupaPassword> with BasePage {
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _showSuccessMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
     );
   }
 
@@ -96,13 +99,9 @@ class _LupaPasswordState extends State<LupaPassword> with BasePage {
             children: [
               const SizedBox(height: 48),
 
-              Column(
-                children: [
-                  Image.asset(
-                    'assets/images/logo.png',
-                    width: 140,
-                  ),
-                ],
+              Image.asset(
+                'assets/images/logo.png',
+                width: 140,
               ),
 
               const SizedBox(height: 40),
@@ -127,7 +126,7 @@ class _LupaPasswordState extends State<LupaPassword> with BasePage {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      "Ganti Password Kamu dengan Melangkapi Inputan Kolom dibawah!",
+                      "Lengkapi data di bawah untuk mengganti password akun Anda.",
                       style: TextStyle(
                         color: Colors.white54,
                         fontSize: 13,
@@ -139,13 +138,14 @@ class _LupaPasswordState extends State<LupaPassword> with BasePage {
                     CustomTextField(
                       hint: "Email",
                       controller: emailController,
-                      prefixIcon: Icons.person_outline_rounded,
+                      prefixIcon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
                     ),
 
                     const SizedBox(height: 13),
 
                     CustomTextField(
-                      hint: "Password",
+                      hint: "Password Baru",
                       controller: passwordController,
                       isPassword: true,
                       prefixIcon: Icons.lock_outline_rounded,
@@ -154,44 +154,39 @@ class _LupaPasswordState extends State<LupaPassword> with BasePage {
                     const SizedBox(height: 13),
 
                     CustomTextField(
-                      hint: "Konfirmasi Password",
+                      hint: "Konfirmasi Password Baru",
                       controller: confirmPasswordController,
                       isPassword: true,
-                      prefixIcon: Icons.lock_outline_rounded,
+                      prefixIcon: Icons.lock_reset_rounded,
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
 
                     isLoading
                         ? const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    )
+                            child: CircularProgressIndicator(color: Colors.white),
+                          )
                         : CustomButton(
-                      text: "Login",
-                      onPressed: handleLupaPassword,
+                            text: "Ganti Password",
+                            onPressed: handleLupaPassword,
+                          ),
+                    
+                    const SizedBox(height: 20),
+
+                    Align(
+                      alignment: Alignment.center,
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Text(
+                          "Kembali ke Login",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LoginPage()),
-                    );
-                  },
-                  child: Text(
-                    "Kembali",
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.4),
-                      fontSize: 12,
-                    ),
-                  ),
                 ),
               ),
 

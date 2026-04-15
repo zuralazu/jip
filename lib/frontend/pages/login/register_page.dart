@@ -28,6 +28,18 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
 
   bool isLoading = false;
 
+  @override
+  void dispose() {
+    // 🔥 Fix: Membersihkan semua controller untuk menghindari memory leak
+    emailController.dispose();
+    passwordController.dispose();
+    nameController.dispose();
+    nohpController.dispose();
+    namaInstansiController.dispose();
+    alamatController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickLogo() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
@@ -152,11 +164,11 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
                     ),
                     const SizedBox(height: 12),
 
-                    // 🔥 Diperbaiki: isPassword dihapus, icon diganti
                     CustomTextField(
                       hint: "Email",
                       controller: emailController,
                       prefixIcon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress, // 🔥 Fix: Keyboard email
                     ),
                     const SizedBox(height: 12),
 
@@ -168,23 +180,21 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
                     ),
                     const SizedBox(height: 12),
 
-                    // 🔥 Diperbaiki: controller diganti, isPassword dihapus, icon diganti
                     CustomTextField(
                       hint: "Nomor Handphone",
                       controller: nohpController,
-                      prefixIcon: Icons.phone_android,
+                      prefixIcon: Icons.phone_android_outlined,
+                      keyboardType: TextInputType.phone, // 🔥 Fix: Keyboard phone
                     ),
                     const SizedBox(height: 12),
 
-                    // 🔥 Diperbaiki: controller diganti, isPassword dihapus, icon diganti
                     CustomTextField(
                       hint: "Nama Instansi",
                       controller: namaInstansiController,
-                      prefixIcon: Icons.business,
+                      prefixIcon: Icons.business_outlined,
                     ),
                     const SizedBox(height: 12),
 
-                    // 🔥 Diperbaiki: controller diganti, isPassword dihapus, icon diganti
                     CustomTextField(
                       hint: "Alamat Instansi",
                       controller: alamatController,
@@ -238,7 +248,6 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
 
                     const SizedBox(height: 24),
 
-                    // 🔥 Diperbaiki: Mengarahkan ke halaman Login
                     Align(
                       alignment: Alignment.center,
                       child: GestureDetector(
@@ -275,8 +284,7 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
               const SizedBox(height: 32),
 
               Text(
-                "© 2025 JIM Pekanbaru", // 🔥 Typo copyright diperbaiki
-                "© 2025 JIM Pekanbaru",
+                "© 2025 JIM Pekanbaru", // 🔥 Fix: Menghapus argumen ganda yang menyebabkan error
                 style: TextStyle(
                   color: Colors.grey[400],
                   fontSize: 11,

@@ -5,6 +5,7 @@ class CustomTextField extends StatelessWidget {
   final bool isPassword;
   final IconData? prefixIcon;
   final TextEditingController controller;
+  final TextInputType? keyboardType; // 🔥 Tambahkan field ini
 
   const CustomTextField({
     super.key,
@@ -12,6 +13,7 @@ class CustomTextField extends StatelessWidget {
     required this.controller,
     this.isPassword = false,
     this.prefixIcon,
+    this.keyboardType, // 🔥 Tambahkan ke constructor
   });
 
   @override
@@ -19,6 +21,7 @@ class CustomTextField extends StatelessWidget {
     return TextField(
       controller: controller,
       obscureText: isPassword,
+      keyboardType: keyboardType, // 🔥 Gunakan di sini
       style: const TextStyle(color: Colors.white, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
