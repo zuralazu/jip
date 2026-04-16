@@ -39,7 +39,6 @@ class CustomBottomNav extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(items.length, (i) {
               final isActive = currentIndex == i;
-              final isLogout = i == 3;
 
               return GestureDetector(
                 onTap: () => onTap(i),
@@ -60,9 +59,7 @@ class CustomBottomNav extends StatelessWidget {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: isLogout
-                              ? Colors.red.withOpacity(0.15)
-                              : isActive
+                          color: isActive
                               ? AppColors.yellow
                               : Colors.transparent,
                           shape: BoxShape.circle,
@@ -70,9 +67,7 @@ class CustomBottomNav extends StatelessWidget {
                         child: Icon(
                           items[i]['icon'] as IconData,
                           size: 20,
-                          color: isLogout
-                              ? Colors.red.shade300
-                              : isActive
+                          color: isActive
                               ? AppColors.primaryDark
                               : Colors.white54,
                         ),
@@ -85,9 +80,7 @@ class CustomBottomNav extends StatelessWidget {
                           fontWeight: isActive
                               ? FontWeight.w700
                               : FontWeight.w400,
-                          color: isLogout
-                              ? Colors.red.shade300
-                              : isActive
+                          color: isActive
                               ? Colors.white
                               : Colors.white54,
                         ),
