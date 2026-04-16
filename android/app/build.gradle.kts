@@ -8,10 +8,10 @@ plugins {
 android {
     namespace = "com.example.jip"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973" // 🔥 Fix: Menggunakan versi NDK yang diminta plugin
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_11 // 🔥 Fix: Kembali ke Java 11
         targetCompatibility = JavaVersion.VERSION_11
     }
 
