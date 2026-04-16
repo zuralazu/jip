@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.jip"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = "27.0.12077973" // 🔥 Fix: Menggunakan versi NDK yang diminta plugin
 
     compileOptions {
