@@ -338,23 +338,26 @@ class ApiService {
     final token = await AuthService.getToken();
 
     final response = await http.get(
-      Uri.parse("$baseUrl/master/kategori-items"),
+      Uri.parse("$baseUrl/master/kategori-item"), // ✅ tanpa 's'
       headers: {
         "Authorization": "Bearer $token",
-        "Accept": "application/json", // 🔥 TAMBAH INI
+        "Accept": "application/json",
       },
     );
 
     print("=== KATEGORI ITEMS ===");
     print("STATUS: ${response.statusCode}");
-    print("URL: $baseUrl/master/kategori-items");
 
     if (response.statusCode != 200) {
       throw Exception("Gagal load kategori: ${response.statusCode}");
     }
 
-    final result = await _handleResponse(response);
-    return result["data"]["data"];
+    final decoded = jsonDecode(response.body);
+
+    // 🔥 FIX: langsung decode, jangan lewat _handleResponse
+    final list = decoded["data"];
+    if (list is List) return list;
+    return [];
   }
 
   static Future<Map<String, dynamic>> getInformasi(int orderId) async {
@@ -487,7 +490,16 @@ class ApiService {
 
     final token = await AuthService.getToken();
 
+    print("=== SAVE INTERIOR DIPANGGIL ===");
+    print("ORDER ID: $orderId");
+    print("DATA KEYS: ${data.keys.toList()}");
+    print("INTERIOR KEY ADA?: ${data.containsKey('interior')}");
+    print("INTERIOR VALUE: ${data['interior']}");
+
     final interior = data["interior"] ?? {};
+    print("INTERIOR ENTRIES COUNT: ${interior.entries.length}");
+    print("INTERIOR KEYS: ${interior.keys.toList()}");
+
 
     for (var entry in interior.entries) {
       final itemId = entry.key;
