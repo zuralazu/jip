@@ -25,7 +25,6 @@ class _TambahPesananPageState extends State<TambahPesananPage> with BasePage {
   final _tahunMobilC      = TextEditingController();
   final _lokasiC          = TextEditingController();
   final _biayaC           = TextEditingController();
-  final _jenisInspeksiC   = TextEditingController();
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -40,7 +39,6 @@ class _TambahPesananPageState extends State<TambahPesananPage> with BasePage {
     _tahunMobilC.dispose();
     _lokasiC.dispose();
     _biayaC.dispose();
-    _jenisInspeksiC.dispose();
     super.dispose();
   }
 
@@ -120,7 +118,6 @@ class _TambahPesananPageState extends State<TambahPesananPage> with BasePage {
         'tanggal_inspeksi': _formatDateApi(_selectedDate!),
         'waktu_inspeksi'  : _formatTime(_selectedTime!),
         'biaya'           : _biayaC.text.trim(),
-        'jenis_inspeksi'  : _jenisInspeksiC.text.trim(),
       };
 
       final result = await ApiService.tambahPesanan(payload);
@@ -253,14 +250,6 @@ class _TambahPesananPageState extends State<TambahPesananPage> with BasePage {
                         icon: Icons.location_on_outlined,
                         validator: (v) =>
                         v!.isEmpty ? 'Lokasi wajib diisi' : null,
-                      ),
-                      _buildField(
-                        controller: _jenisInspeksiC,
-                        label: 'Jenis Inspeksi',
-                        hint: 'Standar, Premium, dll',
-                        icon: Icons.rule_outlined,
-                        validator: (v) =>
-                        v!.isEmpty ? 'Jenis inspeksi wajib diisi' : null,
                       ),
                       _buildField(
                         controller: _biayaC,
