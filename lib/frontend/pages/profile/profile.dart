@@ -5,6 +5,7 @@ import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../utils/colors.dart';
 import '../../widgets/bottom_bar.dart';
+import '../profile/edit_profile.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -122,9 +123,10 @@ class _ProfilePageState extends State<ProfilePage> with BasePage {
     final name = profile!['name'] ?? '-';
     final initials = _getInitials(name);
     final String? logoPath = instansi?['logo_instansi'];
-    final String? logoUrl = (logoPath !=null && logoPath.isNotEmpty)
-          ? '${ApiService.baseUrl}/storage/$logoPath'
-          : null;
+    final String serverUrl = ApiService.baseUrl.replaceAll('/api', '');
+    final String? logoUrl = (logoPath != null && logoPath.isNotEmpty)
+        ? '$serverUrl/storage/$logoPath'
+        : null;
 
     return RefreshIndicator(
       color: AppColors.primary,
@@ -159,14 +161,6 @@ class _ProfilePageState extends State<ProfilePage> with BasePage {
               iconColor: const Color(0xFFE65100),
               label: 'No HP',
               value: profile!['no_hp'],
-            ),
-            _InfoItem(
-              icon: Icons.star_outline_rounded,
-              iconBg: const Color(0xFFF3E8FF),
-              iconColor: const Color(0xFF7C3AED),
-              label: 'Role',
-              value: profile!['role'],
-              isLast: true,
             ),
           ]),
 
@@ -235,30 +229,6 @@ class _ProfilePageState extends State<ProfilePage> with BasePage {
               fontSize: 18,
               fontWeight: FontWeight.w700,
               color: Color(0xFF1A1A2E),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            profile!['role'] ?? '-',
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF888888),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEEF2FF),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              'Active',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF5048E5),
-              ),
             ),
           ),
         ],
@@ -374,11 +344,11 @@ class _ProfilePageState extends State<ProfilePage> with BasePage {
       child: TextButton(
         onPressed: handleEdit,
         style: TextButton.styleFrom(
-          backgroundColor: const Color(0xFFFFF0F0),
+          backgroundColor: const Color(0xFFFFFFFF),
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
-            side: const BorderSide(color: Color(0xFFFDFDFD), width: 0.5),
+            side: const BorderSide(color: Color(0xFFFFFFFF), width: 0.5),
           ),
         ),
         child: Row(
@@ -432,8 +402,22 @@ class _ProfilePageState extends State<ProfilePage> with BasePage {
     );
   }
 
-  void handleEdit(){
+  void handleEdit() async {
+    if (profile == null) return;
 
+    final bool? isUpdated = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditProfilePage(profileData: profile!),
+      ),
+    );
+
+    if (isUpdated == true) {
+      setState(() {
+        isLoading = true;
+      });
+      fetchProfile();
+    }
   }
 
   void handleLogout() {

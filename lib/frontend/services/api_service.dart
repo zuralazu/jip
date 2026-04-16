@@ -259,6 +259,44 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> updateProfile({
+    required String name,
+    required String email,
+    required String noHp,
+    required String namaInstansi,
+    required String alamat,
+    File? logoInstansi,
+  }) async {
+    final token = await AuthService.getToken();
+    var uri = Uri.parse('$baseUrl/profile/update');
+
+    var request = http.MultipartRequest('POST', uri);
+    request.headers['Accept'] = 'application/json';
+    request.headers['Authorization'] = 'Bearer $token';
+
+    request.fields['name'] = name;
+    request.fields['email'] = email;
+    request.fields['no_hp'] = noHp;
+    request.fields['nama_instansi'] = namaInstansi;
+    request.fields['alamat'] = alamat;
+
+    if (logoInstansi != null) {
+      var multipartFile = await http.MultipartFile.fromPath(
+        'logo_instansi',
+        logoInstansi.path,
+      );
+      request.files.add(multipartFile);
+    }
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+
+    return {
+      "statusCode": response.statusCode,
+      "data": jsonDecode(response.body),
+    };
+  }
+
   static Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
     final statusCode = response.statusCode;
 
