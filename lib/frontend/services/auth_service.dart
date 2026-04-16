@@ -16,4 +16,10 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove("token");
   }
+
+  static Future<String> getUserId() async {
+    // sesuaikan dengan key yang kamu pakai saat login & simpan data
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('user_id') ?? '';
+  }
 }

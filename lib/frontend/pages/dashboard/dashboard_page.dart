@@ -277,6 +277,27 @@ class _DashboardPageState extends State<DashboardPage>
   }
 
   Widget _buildHeader(Map<String, dynamic> header) {
+    final now = DateTime.now();
+
+    String greeting;
+    IconData greetingIcon;
+    if (now.hour < 11) {
+      greeting = 'Selamat Pagi';
+      greetingIcon = Icons.wb_sunny_outlined;
+    } else if (now.hour < 15) {
+      greeting = 'Selamat Siang';
+      greetingIcon = Icons.light_mode_outlined;
+    } else if (now.hour < 18) {
+      greeting = 'Selamat Sore';
+      greetingIcon = Icons.wb_twilight_outlined;
+    } else {
+      greeting = 'Selamat Malam';
+      greetingIcon = Icons.nights_stay_outlined;
+    }
+
+    final formattedDate = _formatDate(now);
+    final formattedTime = _formatTime(now);
+
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -292,60 +313,48 @@ class _DashboardPageState extends State<DashboardPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Greeting + badge status
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Halo, ${header['nama_inspektor']}!',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Pantau kinerja dan total pendapatan\nkamu di sini. Semangat!',
-                      style: TextStyle(
-                        color: Colors.white60,
-                        fontSize: 12,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
+              Icon(greetingIcon, color: AppColors.yellow, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                greeting,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(width: 12),
+              const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                  color: const Color(0xFF2ECC71).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: const Color(0xFF2ECC71).withOpacity(0.5),
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Saldo Komisi',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF2ECC71),
+                        shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      CurrencyFormat.toRupiah(header['saldo_komisi']),
-                      style: const TextStyle(
-                        color: AppColors.yellow,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
+                    const SizedBox(width: 5),
+                    const Text(
+                      'Aktif',
+                      style: TextStyle(
+                        color: Color(0xFF2ECC71),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -353,33 +362,75 @@ class _DashboardPageState extends State<DashboardPage>
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 46,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.yellow,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () {},
-              icon: const Icon(Icons.assignment_outlined,
-                  color: AppColors.primary, size: 18),
-              label: const Text(
-                'Laksanakan Tugas Inspeksi',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
+          const SizedBox(height: 8),
+
+          // Nama + waktu sejajar
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  'Halo, ${header['nama_inspektor']}!',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
+              const SizedBox(width: 12),
+              // Waktu di kanan
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    formattedTime,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    formattedDate,
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Pantau kinerja dan total pendapatan\nkamu di sini. Semangat!',
+            style: TextStyle(
+              color: Colors.white60,
+              fontSize: 12,
+              height: 1.5,
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime dt) {
+    const bulan = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+    ];
+    const hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    return '${hari[dt.weekday % 7]}, ${dt.day} ${bulan[dt.month]} ${dt.year}';
+  }
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m WIB';
   }
 
   // ── STAT ROW ─────────────────────────────────────────────────

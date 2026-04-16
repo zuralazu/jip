@@ -327,7 +327,7 @@ class ApiService {
       throw Exception("SERVER_ERROR");
     }
 
-    if (statusCode != 200) {
+    if (statusCode < 200 || statusCode >= 300) {
       throw Exception(data["message"] ?? "UNKNOWN_ERROR");
     }
 
@@ -694,6 +694,28 @@ class ApiService {
         throw Exception("Gagal simpan kaki-kaki item $itemId");
       }
     }
+  }
+
+  static Future<Map<String, dynamic>> tambahPesanan(Map<String, dynamic> payload) async {
+    final token = await AuthService.getToken();
+
+    final url = Uri.parse("$baseUrl/tambah-inspeksi");
+
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+        "Accept": "application/json",
+      },
+      body: jsonEncode(payload),
+    );
+
+    print("=== TAMBAH PESANAN ===");
+    print("STATUS: ${response.statusCode}");
+    print("BODY: ${response.body}");
+
+    return _handleResponse(response);
   }
 
   static Future<Map<String, dynamic>> saveDraftInspeksi(
