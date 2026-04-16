@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:jip/frontend/pages/profile/profile.dart';
 import 'frontend/pages/dashboard/dashboard_page.dart';
 import 'frontend/pages/splash/splash_page.dart';
 import 'frontend/pages/login/login_page.dart';
@@ -29,6 +30,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/dashboard':    (context) => const DashboardPage(),
         '/tugas':        (context) => const TugasPage(),
+        '/profile':      (context) => const ProfilePage(),
       },
     );
   }
