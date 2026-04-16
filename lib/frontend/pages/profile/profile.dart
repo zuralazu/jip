@@ -17,7 +17,6 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> with BasePage {
   Map<String, dynamic>? profile;
   bool isLoading = true;
-  int _currentIndex = 3;
 
   @override
   void initState() {
@@ -45,24 +44,6 @@ class _ProfilePageState extends State<ProfilePage> with BasePage {
     }
   }
 
-  void _onNavTap(int index) {
-    if (index == _currentIndex) return;
-    switch (index) {
-      case 0:
-        Navigator.pushReplacementNamed(context, '/dashboard');
-        break;
-      case 1:
-        Navigator.pushReplacementNamed(context, '/tugas');
-        break;
-      case 2:
-        Navigator.pushReplacementNamed(context, '/slip-komisi');
-        break;
-      case 3:
-        Navigator.pushReplacementNamed(context, '/profile');
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,10 +53,6 @@ class _ProfilePageState extends State<ProfilePage> with BasePage {
           _buildHeader(),
           Expanded(child: _buildBody()),
         ],
-      ),
-      bottomNavigationBar: CustomBottomNav(
-        currentIndex: _currentIndex,
-        onTap: _onNavTap,
       ),
     );
   }

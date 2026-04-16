@@ -8,6 +8,7 @@ import '../../widgets/transaction_card.dart';
 import '../../services/auth_service.dart';
 import '../tugas/tugas_page.dart';
 import '../../widgets/bottom_bar.dart';
+import 'dart:async';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -21,12 +22,30 @@ class _DashboardPageState extends State<DashboardPage>
   Map<String, dynamic>? dashboardData;
   bool isLoading = true;
   String? errorMessage;
-  int _currentIndex = 0;
+
+  late DateTime _currentTime;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    _currentTime = DateTime.now();
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _currentTime = DateTime.now();
+        });
+      }
+    });
+
     fetchDashboard();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   void fetchDashboard() async {
@@ -186,6 +205,7 @@ class _DashboardPageState extends State<DashboardPage>
 
   @override
   Widget build(BuildContext context) {
+
     if (isLoading) {
       return const Scaffold(
         backgroundColor: AppColors.background,
@@ -232,17 +252,12 @@ class _DashboardPageState extends State<DashboardPage>
     final statistik = dashboardData!["statistik"] as Map<String, dynamic>? ?? {};
     final riwayat   = dashboardData!["riwayat_transaksi"] as List? ?? [];
 
-    // ── Layout utama: TIDAK scroll, transaction list yang scroll ──
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // Header biru (fixed)
           _buildHeader(header),
-
-          // Stat row (fixed)
           _buildStatRow(statistik),
-
           const SizedBox(height: 8),
 
           Expanded(
@@ -252,32 +267,11 @@ class _DashboardPageState extends State<DashboardPage>
           const SizedBox(height: 8),
         ],
       ),
-      bottomNavigationBar: CustomBottomNav(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          if (index == _currentIndex) return;
-
-          switch (index) {
-            case 0:
-              Navigator.pushReplacementNamed(context, '/dashboard');
-              break;
-            case 1:
-              Navigator.pushReplacementNamed(context, '/tugas');
-              break;
-            case 2:
-              Navigator.pushReplacementNamed(context, '/slip-komisi');
-              break;
-            case 3:
-              Navigator.pushReplacementNamed(context, '/profile');
-              break;
-          }
-        },
-      ),
     );
   }
 
   Widget _buildHeader(Map<String, dynamic> header) {
-    final now = DateTime.now();
+    final now = _currentTime;
 
     String greeting;
     IconData greetingIcon;
@@ -430,7 +424,8 @@ class _DashboardPageState extends State<DashboardPage>
   String _formatTime(DateTime dt) {
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
-    return '$h:$m WIB';
+    final s = dt.second.toString().padLeft(2, '0');
+    return '$h:$m:$s WIB';
   }
 
   // ── STAT ROW ─────────────────────────────────────────────────

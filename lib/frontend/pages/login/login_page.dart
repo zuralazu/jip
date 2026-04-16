@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jip/frontend/pages/main/main_page.dart';
 import '../../core/base_page.dart';
 import '../../utils/colors.dart';
 import '../../widgets/custom_button.dart';
@@ -54,7 +55,7 @@ class _LoginPageState extends State<LoginPage> with BasePage {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DashboardPage()),
+          MaterialPageRoute(builder: (_) => const MainPage()),
         );
       } else if (statusCode == 401) {
         _showMessage("Email atau password salah");

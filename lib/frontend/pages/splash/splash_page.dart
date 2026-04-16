@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:jip/frontend/pages/main/main_page.dart';
 import '../../utils/colors.dart';
 
 import '../../services/auth_service.dart';
@@ -54,7 +55,7 @@ class _SplashPageState extends State<SplashPage>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => const DashboardPage(),
+            builder: (_) => const MainPage(),
           ),
         );
       } else {

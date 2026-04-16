@@ -18,7 +18,6 @@ class _TugasPageState extends State<TugasPage>
     with BasePage {
   List tugasList = [];
   bool isLoading = true;
-  int _currentIndex = 1;
 
   @override
   void initState() {
@@ -62,7 +61,6 @@ class _TugasPageState extends State<TugasPage>
   }
 
   void _onNavTap(int index) {
-    if (index == _currentIndex) return;
 
     switch (index) {
       case 0:
@@ -113,10 +111,6 @@ class _TugasPageState extends State<TugasPage>
             fontSize: 13,
           ),
         ),
-      ),
-      bottomNavigationBar: CustomBottomNav(
-        currentIndex: _currentIndex,
-        onTap: _onNavTap,
       ),
     );
   }
