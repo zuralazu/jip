@@ -87,16 +87,22 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
       "foto_kerusakan": fotoKerusakan.map((e) => e.path).toList(),
     };
 
+    // 🔥 FIX: tulis ke formData[section][fieldKey], bukan formData[fieldKey]
     if (widget.formData != null && widget.fieldKey != null) {
       final safeMap = Map<String, dynamic>.from(widget.formData!);
 
-      safeMap[widget.fieldKey!] = data;
+      // Pastikan section map sudah ada
+      safeMap[widget.section] ??= <String, dynamic>{};
+      final sectionMap = Map<String, dynamic>.from(safeMap[widget.section]);
+
+      sectionMap[widget.fieldKey!] = data;
+      safeMap[widget.section] = sectionMap;
 
       widget.formData!.clear();
       widget.formData!.addAll(safeMap);
     }
 
-    widget.onChanged?.call(data); // 🔥 kirim item saja, bukan full form
+    widget.onChanged?.call(data);
   }
 
   Widget build(BuildContext context) {
@@ -369,21 +375,26 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
               ),
               onTap: () {
                 setState(() => kondisi = opt);
-                saveAll();
 
-                // 🔥 SIMPAN KE FORMDATA
+                // 🔥 FIX: sama, tulis ke section dulu
                 if (widget.formData != null && widget.fieldKey != null) {
                   final safeMap = Map<String, dynamic>.from(widget.formData!);
 
-                  safeMap[widget.fieldKey!] = {
+                  safeMap[widget.section] ??= <String, dynamic>{};
+                  final sectionMap = Map<String, dynamic>.from(safeMap[widget.section]);
+
+                  sectionMap[widget.fieldKey!] = {
+                    ...Map<String, dynamic>.from(sectionMap[widget.fieldKey!] ?? {}),
                     "kondisi": kondisi,
                     "showKerusakan": showKerusakan,
                   };
 
+                  safeMap[widget.section] = sectionMap;
                   widget.formData!.clear();
                   widget.formData!.addAll(safeMap);
                 }
 
+                saveAll(); // panggil saveAll() setelah update kondisi
                 Navigator.pop(context);
               },
             )),

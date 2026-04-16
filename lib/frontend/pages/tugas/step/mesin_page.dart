@@ -65,37 +65,44 @@ class _MesinPageState extends State<MesinPage> {
     loadItemIds();
   }
 
-  // ✅ Contoh di KakiKakiPage
   Future<void> loadItemIds() async {
     try {
       final kategori = await ApiService.getKategoriItems();
 
-      // 🔥 Pastikan list of Map, bukan list of String
-      if (kategori.isEmpty || kategori.first is! Map) {
-        print("KATEGORI DATA TIDAK VALID, pakai fallback");
-        return; // langsung pakai fallbackMap
+      if (kategori.isEmpty) return;
+
+      // 🔥 FIX: pakai for loop biasa, hindari firstWhere dengan orElse null
+      Map<String, dynamic>? targetKategori;
+      for (final k in kategori) {
+        if (k is Map && k["nama_kategori"].toString().toLowerCase().contains("mesin")) {
+          // ganti "interior" sesuai page: "eksterior", "mesin", "kaki"
+          targetKategori = Map<String, dynamic>.from(k);
+          break;
+        }
       }
 
-      final kakiKategori = kategori.firstWhere(
-            (k) => k["nama_kategori"].toString().toLowerCase().contains("mesin"),
-        orElse: () => null, // 🔥 jangan crash
-      );
-
-      if (kakiKategori == null) {
-        print("KATEGORI KAKI TIDAK DITEMUKAN, pakai fallback");
+      if (targetKategori == null) {
+        print("KATEGORI TIDAK DITEMUKAN, pakai fallback");
         return;
       }
 
       final Map<String, int> tempMap = {};
-      for (var item in kakiKategori["daftar_item"]) {
-        tempMap[item["nama_item"]] = item["item_id"];
+      final daftarItem = targetKategori["daftar_item"];
+
+      if (daftarItem is List) {
+        for (final item in daftarItem) {
+          if (item is Map) {
+            tempMap[item["nama_item"].toString()] = item["item_id"] as int;
+          }
+        }
       }
 
+      print("ITEM ID MAP LOADED: ${tempMap.length} items");
       setState(() => itemIdMap = tempMap);
 
     } catch (e) {
-      print("ERROR LOAD KAKI-KAKI: $e");
-      // fallbackMap otomatis dipakai di build()
+      print("ERROR LOAD ITEM IDS: $e");
+      // fallbackMap otomatis dipakai
     }
   }
 
@@ -120,6 +127,8 @@ class _MesinPageState extends State<MesinPage> {
       }
       updated[itemId.toString()] = safeValue;
     }
+
+    updated[itemName] = value;
 
     widget.formData['mesin'] = updated;
     widget.onChanged(widget.formData);

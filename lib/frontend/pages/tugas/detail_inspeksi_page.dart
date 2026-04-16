@@ -84,8 +84,8 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     try {
       final res = await ApiService.getInformasi(widget.orderId);
 
-      if (res["success"] == true) {
-        final data = res["data"] ?? {};
+      if (res["statusCode"] == 200) {
+        final data = res["data"]?["data"] ?? res["data"] ?? {};
 
         setState(() {
           formData = mergeSafe(data, formData);
@@ -365,7 +365,12 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
           print("foto_bpkb_1: ${formData['foto_bpkb_1']}");
 
           await ApiService.saveDokumen(orderId, formData); break;
-        case 2: await ApiService.saveInterior(orderId, formData, isFinal: false); break;
+        case 2:
+          print("=== BEFORE SAVE INTERIOR ===");
+          print("formData keys: ${formData.keys.toList()}");
+          print("formData['interior']: ${formData['interior']}");
+
+          await ApiService.saveInterior(orderId, formData, isFinal: false); break;
         case 3: await ApiService.saveEksterior(orderId, formData, isFinal: false); break;
         case 4: await ApiService.saveMesin(orderId, formData, isFinal: false); break;
         case 5: await ApiService.saveKakiKaki(orderId, formData, isFinal: false); break;
