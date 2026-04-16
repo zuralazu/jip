@@ -57,7 +57,7 @@ class TransactionCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'Order ID : #${item['order_id'] ?? '-'}',
+                'Order ID : ${item['order_id'] ?? '-'}',
                 style: const TextStyle(
                   fontSize: 10,
                   color: AppColors.textGrey,

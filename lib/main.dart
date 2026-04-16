@@ -4,6 +4,7 @@ import 'package:jip/frontend/pages/profile/profile.dart';
 import 'frontend/pages/dashboard/dashboard_page.dart';
 import 'frontend/pages/splash/splash_page.dart';
 import 'frontend/pages/login/login_page.dart';
+import 'frontend/pages/tugas/pesanan/tambah_pesanan_page.dart';
 import 'frontend/pages/tugas/tugas_page.dart';
 
 Future<void> main() async {
@@ -31,6 +32,7 @@ class MyApp extends StatelessWidget {
         '/dashboard':    (context) => const DashboardPage(),
         '/tugas':        (context) => const TugasPage(),
         '/profile':      (context) => const ProfilePage(),
+        '/tambah-pesanan': (context) => const TambahPesananPage(),
       },
     );
   }

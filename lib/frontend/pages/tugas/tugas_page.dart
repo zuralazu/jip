@@ -90,6 +90,30 @@ class _TugasPageState extends State<TugasPage>
           Expanded(child: _buildBody()),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final result = await Navigator.pushNamed(context, '/tambah-pesanan');
+          if (result == true) fetchTugas();
+        },
+        backgroundColor: AppColors.yellow,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        icon: const Icon(
+          Icons.add_rounded,
+          color: AppColors.primary,
+          size: 20,
+        ),
+        label: const Text(
+          'Tambah Pesanan',
+          style: TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+          ),
+        ),
+      ),
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentIndex,
         onTap: _onNavTap,
@@ -187,7 +211,8 @@ class _TugasPageState extends State<TugasPage>
       onRefresh: () async => fetchTugas(),
       // Di dalam _TugasPageState, ganti ListView.builder jadi ini:
       child: ListView.builder(
-        padding: const EdgeInsets.only(top: 12, bottom: 24),
+        // Ganti padding di _buildBody ListView
+        padding: const EdgeInsets.only(top: 12, bottom: 90),
         itemCount: tugasList.length,
         itemBuilder: (context, index) => TugasCard(
           item: tugasList[index],
