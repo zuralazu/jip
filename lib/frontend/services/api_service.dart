@@ -801,4 +801,83 @@ class ApiService {
 
     return _handleResponse(response);
   }
+
+  static Future<Map<String, dynamic>> getSlipKomisi() async {
+    final token = await AuthService.getToken();
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/komisi'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('=== SLIP KOMISI ===');
+    print('STATUS: ${response.statusCode}');
+    print('BODY: ${response.body}');
+
+    try {
+      final data = jsonDecode(response.body);
+      return {
+        'statusCode': response.statusCode,
+        'data': data,
+      };
+    } catch (e) {
+      return {
+        'statusCode': response.statusCode,
+        'data': response.body,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getDetailKomisi(int komisiId) async {
+    final token = await AuthService.getToken();
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/komisi/$komisiId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('=== DETAIL KOMISI ===');
+    print('STATUS: ${response.statusCode}');
+    print('BODY: ${response.body}');
+
+    try {
+      final data = jsonDecode(response.body);
+      return {
+        'statusCode': response.statusCode,
+        'data': data,
+      };
+    } catch (e) {
+      return {
+        'statusCode': response.statusCode,
+        'data': response.body,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> selesaikanKomisi({
+    required int slipId,
+    required String metodeBayar,
+  }) async {
+    final token = await AuthService.getToken();
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/komisi/$slipId/cair'), // ← sesuaikan endpoint dengan temen kamu
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode({
+        'metode_bayar': metodeBayar,
+      }),
+    );
+
+    return _handleResponse(response);
+  }
 }
