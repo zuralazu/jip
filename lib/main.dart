@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:jip/frontend/pages/profile/profile.dart';
+import 'package:jip/frontend/pages/slip-komisi/slip_komisi_page.dart';
 
 import 'frontend/pages/dashboard/dashboard_page.dart';
 import 'frontend/pages/splash/splash_page.dart';
@@ -33,6 +34,7 @@ class MyApp extends StatelessWidget {
         // '/profile':      (context) => const ProfilePage(),
         '/main': (context) => const MainPage(),
         '/tambah-pesanan': (context) => const TambahPesananPage(),
+        '/slip-komisi': (context) => const SlipKomisiPage(),
       },
     );
   }

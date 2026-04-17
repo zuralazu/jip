@@ -4,7 +4,7 @@ import '../tugas/tugas_page.dart';
 import '../profile/profile.dart';
 import '../dashboard/dashboard_page.dart';
 
-// import 'komisi/slip_komisi_page.dart';
+import '../slip-komisi/slip_komisi_page.dart';
 
 class MainPage extends StatefulWidget {
   final int initialIndex;
@@ -22,7 +22,7 @@ class _MainPageState extends State<MainPage> {
   final List<Widget> _pages = [
     const DashboardPage(),
     const TugasPage(),
-    const Center(child: Text("Halaman Slip Komisi")),
+    const SlipKomisiPage(),
     const ProfilePage(),
   ];
 
