@@ -102,6 +102,13 @@ class ApiService {
     print("BODY: ${response.body}");
     print("BASE_URL: $baseUrl");
 
+    if (response.statusCode == 401){
+      return {
+        "statusCode": response.statusCode,
+        "data": response.body,
+      };
+    }
+
     try {
       final data = jsonDecode(response.body);
       return {
@@ -867,14 +874,14 @@ class ApiService {
     final token = await AuthService.getToken();
 
     final response = await http.post(
-      Uri.parse('$baseUrl/komisi/$slipId/cair'), // ← sesuaikan endpoint dengan temen kamu
+      Uri.parse('$baseUrl/komisi/$slipId/selesai'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
       },
       body: jsonEncode({
-        'metode_bayar': metodeBayar,
+        'metode_pembayaran': metodeBayar,
       }),
     );
 
