@@ -59,6 +59,10 @@ class _LoginPageState extends State<LoginPage> with BasePage {
         );
       } else if (statusCode == 401) {
         _showMessage("Email atau password salah");
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+        );
       } else if (statusCode == 500) {
         _showMessage("Server sedang bermasalah, coba lagi nanti");
       } else {

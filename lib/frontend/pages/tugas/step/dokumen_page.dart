@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../utils/colors.dart';
 import '../../../widgets/section_header.dart';
 import '../../../widgets/foto_upload_box.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:google_ml_kit/google_ml_kit.dart';
+import 'package:image_picker/image_picker.dart';
 
 class DokumenPage extends StatefulWidget {
   final Map<String, dynamic> formData;
@@ -21,6 +24,8 @@ class DokumenPage extends StatefulWidget {
 class _DokumenPageState extends State<DokumenPage> {
   final Map<String, TextEditingController> _controllers = {};
 
+  bool isScanningOcr = false;
+
   File? getImage(String key) {
     final path = widget.formData[key];
     if (path == null || path.toString().isEmpty) return null;
@@ -34,6 +39,181 @@ class _DokumenPageState extends State<DokumenPage> {
       );
     }
     return _controllers[key]!;
+  }
+
+  Future<void> _scanOCR(String imagePath, {required bool isStnk}) async {
+    setState(() {
+      isScanningOcr = true;
+    });
+
+    try {
+      final inputImage = InputImage.fromFilePath(imagePath);
+      final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+      final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
+
+      String rawText = recognizedText.text;
+
+      textRecognizer.close();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Menganalisis dokumen...'), duration: Duration(seconds: 1)),
+      );
+
+      _parseOcrText(rawText, isStnk: isStnk);
+
+    } catch (e) {
+      debugPrint("Error OCR: $e");
+    } finally {
+      setState(() {
+        isScanningOcr = false;
+      });
+    }
+  }
+
+  void _parseOcrText(String rawText, {required bool isStnk}) {
+    String textUpper = rawText.toUpperCase();
+    List<String> lines = textUpper.split('\n');
+
+    RegExp rangkaRegExp = RegExp(r'\b[A-Z0-9]{17}\b');
+    var rangkaMatch = rangkaRegExp.firstMatch(textUpper);
+    String? foundRangka;
+
+    if (rangkaMatch != null) {
+      foundRangka = rangkaMatch.group(0)!;
+      updateForm("nomor_rangka", foundRangka);
+      _getController("nomor_rangka").text = foundRangka;
+    }
+
+    String? foundBpkb;
+    RegExp bpkbPattern = RegExp(r'\b[A-Z][\s\-.]?\d{6,9}\b');
+
+    for (int i = 0; i < lines.length; i++) {
+      String line = lines[i];
+      if (line.contains("BPKB") || line.contains("8PKB")) {
+        var match = bpkbPattern.firstMatch(line);
+        if (match != null) {
+          foundBpkb = match.group(0)!.replaceAll(RegExp(r'[\s\-.]'), '');
+          break;
+        }
+        else if (i + 1 < lines.length) {
+          var matchNext = bpkbPattern.firstMatch(lines[i + 1]);
+          if (matchNext != null) {
+            foundBpkb = matchNext.group(0)!.replaceAll(RegExp(r'[\s\-.]'), '');
+            break;
+          }
+        }
+      }
+    }
+
+    if (foundBpkb != null) {
+      updateForm("nomor_bpkb", foundBpkb);
+      _getController("nomor_bpkb").text = foundBpkb;
+    }
+
+    RegExp mesinRegExp = RegExp(r'\b[A-Z0-9\-]{5,15}\b');
+    var matches = mesinRegExp.allMatches(textUpper);
+
+    for (var match in matches) {
+      String potentialMesin = match.group(0)!;
+      String cleanMesin = potentialMesin.replaceAll('-', '');
+
+      if (cleanMesin != foundRangka &&
+          (foundBpkb == null || cleanMesin != foundBpkb) &&
+          cleanMesin.contains(RegExp(r'[0-9]')) &&
+          cleanMesin.contains(RegExp(r'[A-Z]'))) {
+
+        updateForm("nomor_mesin", potentialMesin);
+        _getController("nomor_mesin").text = potentialMesin;
+        break;
+      }
+    }
+
+    String? foundNama;
+    for (int i = 0; i < lines.length; i++) {
+      String line = lines[i];
+
+      if (line.contains("NAMA") || line.contains("PEMILIK")) {
+        String cleanLine = line.replaceAll(RegExp(r'(NAMA\s*PEMILIK|NAMA|PEMILIK)'), '');
+        cleanLine = cleanLine.replaceAll(RegExp(r'[:;.\-\_1]'), '').trim();
+
+        if (cleanLine.length > 3 && !cleanLine.contains("ALAMAT")) {
+          foundNama = cleanLine;
+          break;
+        }
+        else if (i + 1 < lines.length) {
+          String nextLine = lines[i + 1].replaceAll(RegExp(r'[:;.\-\_]'), '').trim();
+          if (nextLine.length > 3 && !nextLine.contains("ALAMAT")) {
+            foundNama = nextLine;
+            break;
+          }
+        }
+      }
+    }
+
+    if (foundNama != null) {
+      updateForm("nama_pemilik", foundNama);
+      _getController("nama_pemilik").text = foundNama;
+    }
+
+    if (isStnk) {
+      String? finalDateDb;
+
+      RegExp wordDateRegExp = RegExp(r'\b([0-9A-Z]{1,2})\s+([A-Z0-9]{3,10})\s+(\d{4})\b');
+      var wordMatch = wordDateRegExp.firstMatch(textUpper);
+
+      if (wordMatch != null) {
+        String rawDay = wordMatch.group(1)!;
+
+        String cleanDay = rawDay
+            .replaceAll('T', '7')
+            .replaceAll('O', '0')
+            .replaceAll('Q', '0')
+            .replaceAll('S', '5')
+            .replaceAll('I', '1')
+            .replaceAll('L', '1')
+            .replaceAll('Z', '2')
+            .replaceAll('B', '8');
+
+        String dd = cleanDay.padLeft(2, '0');
+        String wordMonth = wordMatch.group(2)!;
+        String yyyy = wordMatch.group(3)!;
+
+        String mm = '01'; // Default
+
+        if (wordMonth.contains('JAN')) mm = '01';
+        else if (wordMonth.contains('FEB')) mm = '02';
+        else if (wordMonth.contains('MAR')) mm = '03';
+        else if (wordMonth.contains('APR')) mm = '04';
+        else if (wordMonth.contains('MEI')) mm = '05';
+        else if (wordMonth.contains('JUN')) mm = '06';
+        else if (wordMonth.contains('JUL')) mm = '07';
+        else if (wordMonth.contains('AGU') || wordMonth.contains('AGS')) mm = '08';
+        else if (wordMonth.contains('SEP')) mm = '09';
+        else if (wordMonth.contains('OKT')) mm = '10';
+        else if (wordMonth.contains('NOV')) mm = '11';
+        else if (wordMonth.contains('DES')) mm = '12';
+
+        if (int.tryParse(cleanDay) != null) {
+          finalDateDb = "$yyyy-$mm-$dd";
+        }
+      }
+      else {
+        RegExp numDateRegExp = RegExp(r'\b(\d{2})[-./](\d{2})[-./](\d{4})\b');
+        var numMatches = numDateRegExp.allMatches(textUpper);
+
+        if (numMatches.isNotEmpty) {
+          String dd = numMatches.first.group(1)!;
+          String mm = numMatches.first.group(2)!;
+          String yyyy = numMatches.first.group(3)!;
+          finalDateDb = "$yyyy-$mm-$dd";
+        }
+      }
+
+      if (finalDateDb != null) {
+        updateForm("pajak_5_tahun", finalDateDb);
+        _getController("pajak_5_tahun").text = finalDateDb;
+      }
+    }
   }
 
   @override
@@ -91,7 +271,7 @@ class _DokumenPageState extends State<DokumenPage> {
               imageFile: getImage("foto_stnk"),
               onImagePicked: (file) {
                 updateForm("foto_stnk", file.path);
-                setState(() {});
+                _scanOCR(file.path, isStnk:true);
               },
               onRemove: () {
                 updateForm("foto_stnk", null);
@@ -166,6 +346,25 @@ class _DokumenPageState extends State<DokumenPage> {
                     setState(() {});
                   },
                 ),
+                if (isScanningOcr)
+                  Container(
+                    color: Colors.black.withOpacity(0.3),
+                    child: const Center(
+                      child: Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircularProgressIndicator(),
+                              SizedBox(height: 16),
+                              Text("Membaca Teks Dokumen...", style: TextStyle(fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
               ],
             ),
             extraFields: [

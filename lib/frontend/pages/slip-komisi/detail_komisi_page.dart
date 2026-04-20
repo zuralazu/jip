@@ -855,7 +855,7 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          data['order_id']?.toString() ?? '-',
+                          data['mobil_info']?.toString() ?? '-',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -864,7 +864,7 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          data['mobil_info']?.toString() ?? '-', // ✅ ini yang muncul
+                          data['order_id']?.toString() ?? '-',
                           style: const TextStyle(
                             fontSize: 11,
                             color: AppColors.textGrey,
