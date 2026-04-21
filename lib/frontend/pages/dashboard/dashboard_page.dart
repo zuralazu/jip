@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jip/frontend/pages/login/login_page.dart';
 import '../../core/base_page.dart';
 import '../../services/api_service.dart';
 import '../../utils/colors.dart';
@@ -38,44 +39,12 @@ class _DashboardPageState extends State<DashboardPage>
         });
       }
     });
-
-    fetchDashboard();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
-  }
-
-  void fetchDashboard() async {
-    try {
-      final result = await ApiService.getDashboard();
-
-      if (result["statusCode"] == 200) {
-        final data = result["data"];
-        final extracted = data["data"] ?? data;
-
-        if (extracted != null) {
-          setState(() {
-            dashboardData = extracted;
-            isLoading = false;
-          });
-        } else {
-          setState(() {
-            errorMessage = 'Struktur data tidak sesuai';
-            isLoading = false;
-          });
-        }
-      } else {
-        setState(() {
-          errorMessage = 'Gagal memuat data (${result["statusCode"]})';
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      handleApiError(e);
-    }
   }
 
   // Ganti handleLogout dengan ini
@@ -205,48 +174,6 @@ class _DashboardPageState extends State<DashboardPage>
 
   @override
   Widget build(BuildContext context) {
-
-    if (isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-      );
-    }
-
-    if (errorMessage != null || dashboardData == null) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 48),
-              const SizedBox(height: 12),
-              Text(
-                errorMessage ?? 'Data tidak tersedia',
-                style: const TextStyle(color: Colors.red),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary),
-                onPressed: () {
-                  setState(() {
-                    isLoading = true;
-                    errorMessage = null;
-                  });
-                  fetchDashboard();
-                },
-                child: const Text('Coba Lagi',
-                    style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
 
     final header    = dashboardData!["header"]    as Map<String, dynamic>? ?? {};
     final statistik = dashboardData!["statistik"] as Map<String, dynamic>? ?? {};

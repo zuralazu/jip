@@ -102,13 +102,6 @@ class ApiService {
     print("BODY: ${response.body}");
     print("BASE_URL: $baseUrl");
 
-    if (response.statusCode == 401){
-      return {
-        "statusCode": response.statusCode,
-        "data": response.body,
-      };
-    }
-
     try {
       final data = jsonDecode(response.body);
       return {
