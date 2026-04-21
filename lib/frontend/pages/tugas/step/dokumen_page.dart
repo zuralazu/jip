@@ -85,20 +85,35 @@ class _DokumenPageState extends State<DokumenPage> {
     }
 
     String? foundBpkb;
-    RegExp bpkbPattern = RegExp(r'\b[A-Z][\s\-.]?\d{6,9}\b');
+    RegExp bpkbPattern = RegExp(r'[A-Z][\s\-.]?\d{6,9}');
 
     for (int i = 0; i < lines.length; i++) {
       String line = lines[i];
-      if (line.contains("BPKB") || line.contains("8PKB")) {
-        var match = bpkbPattern.firstMatch(line);
+
+      if (line.contains("REGISTRASI") || line.contains("8PKB") || line.contains("BPKB")) {
+
+        String cleanedLine = line.replaceAll(RegExp(r'(REGISTRASI\s*UO|REGISTRASI\s*NO|REGISTRASI|NOMOR|NO\.|NO|BPKB|8PKB|:|-|\s)'), '');
+
+        if (cleanedLine.length > 1) {
+          String firstChar = cleanedLine.substring(0, 1);
+          String restChars = cleanedLine.substring(1).replaceAll('O', '0');
+          cleanedLine = firstChar + restChars;
+        }
+
+        var match = bpkbPattern.firstMatch(cleanedLine);
+
         if (match != null) {
-          foundBpkb = match.group(0)!.replaceAll(RegExp(r'[\s\-.]'), '');
+          foundBpkb = match.group(0)!;
           break;
         }
         else if (i + 1 < lines.length) {
-          var matchNext = bpkbPattern.firstMatch(lines[i + 1]);
+          String nextLine = lines[i + 1].replaceAll(RegExp(r'(REGISTRASI|NOMOR|NO|BPKB|8PKB|:|-|\s)'), '');
+          if (nextLine.length > 1) {
+            nextLine = nextLine.substring(0, 1) + nextLine.substring(1).replaceAll('O', '0');
+          }
+          var matchNext = bpkbPattern.firstMatch(nextLine);
           if (matchNext != null) {
-            foundBpkb = matchNext.group(0)!.replaceAll(RegExp(r'[\s\-.]'), '');
+            foundBpkb = matchNext.group(0)!;
             break;
           }
         }
@@ -214,6 +229,9 @@ class _DokumenPageState extends State<DokumenPage> {
         _getController("pajak_5_tahun").text = finalDateDb;
       }
     }
+
+    debugPrint("=====================================");
+    debugPrint(rawText);
   }
 
   @override
