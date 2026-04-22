@@ -863,20 +863,35 @@ class ApiService {
   static Future<Map<String, dynamic>> selesaikanKomisi({
     required int slipId,
     required String metodeBayar,
+    File? buktiImage, // ✅ tambahan opsional
   }) async {
     final token = await AuthService.getToken();
 
-    final response = await http.post(
+    // Pakai multipart supaya bisa kirim file
+    final request = http.MultipartRequest(
+      'POST',
       Uri.parse('$baseUrl/komisi/$slipId/selesai'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode({
-        'metode_pembayaran': metodeBayar,
-      }),
     );
+
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] = 'application/json';
+
+    request.fields['metode_pembayaran'] = metodeBayar;
+
+    // Kirim gambar hanya kalau ada
+    if (buktiImage != null) {
+      request.files.add(await http.MultipartFile.fromPath(
+        'bukti_pembayaran', // sesuaikan dengan key yang diminta backend
+        buktiImage.path,
+      ));
+    }
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+
+    print('=== SELESAIKAN KOMISI ===');
+    print('STATUS: ${response.statusCode}');
+    print('BODY: ${response.body}');
 
     return _handleResponse(response);
   }

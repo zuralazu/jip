@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../utils/colors.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class DetailKomisiPage extends StatefulWidget {
   final Map slipData;
@@ -19,6 +21,9 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
   Map<String, dynamic>? detailData;
   Map<String, dynamic>? instansiData;
   bool isLoadingDetail = true;
+
+  File? _buktiImage;
+  final ImagePicker _picker = ImagePicker();
 
   final List<Map<String, dynamic>> metodeBayarOptions = [
     {'label': 'Transfer Bank', 'icon': Icons.account_balance_rounded},
@@ -50,6 +55,60 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
     return 'Rp $formatted';
   }
 
+  Future<void> _pickImage() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const Text(
+                'Pilih Sumber Gambar',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
+                title: const Text('Kamera', style: TextStyle(fontSize: 13)),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
+                title: const Text('Galeri', style: TextStyle(fontSize: 13)),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final picked = await _picker.pickImage(
+      source: source,
+      imageQuality: 75,
+      maxWidth: 1024,
+    );
+
+    if (picked != null && mounted) {
+      setState(() => _buktiImage = File(picked.path));
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -79,6 +138,7 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
   }
 
   Future<void> _submitKomisi() async {
+    // ✅ 1. Validasi dulu
     final metode = selectedMetodeBayar ?? _metodeBayarController.text.trim();
 
     if (metode.isEmpty) {
@@ -93,14 +153,14 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
           ),
           backgroundColor: Colors.orange.shade700,
           behavior: SnackBarBehavior.floating,
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
       return;
     }
 
+    // ✅ 2. Dialog konfirmasi
     final confirm = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -128,15 +188,11 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.payments_rounded,
-                      size: 18, color: AppColors.primary),
+                  const Icon(Icons.payments_rounded, size: 18, color: AppColors.primary),
                   const SizedBox(width: 8),
                   Text(
                     'Via: $metode',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -153,12 +209,10 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('Ya, Konfirmasi',
-                style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.w700)),
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -166,6 +220,7 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
 
     if (confirm != true) return;
 
+    // ✅ 3. Baru panggil API
     setState(() => isSubmitting = true);
 
     try {
@@ -173,6 +228,7 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
       final result = await ApiService.selesaikanKomisi(
         slipId: slipId,
         metodeBayar: metode,
+        buktiImage: _buktiImage, // ✅ sudah benar
       );
 
       if (!mounted) return;
@@ -180,15 +236,13 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
       if (result['statusCode'] == 200) {
         _showSuccessSheet();
       } else {
-        final msg =
-            result['data']?['message'] ?? 'Gagal memproses komisi';
+        final msg = result['data']?['message'] ?? 'Gagal memproses komisi';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(msg),
             backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -200,8 +254,7 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
             content: Text('Error: $e'),
             backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -948,11 +1001,11 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // — header metode bayar (tidak berubah) —
           Row(
             children: [
               Container(
-                width: 4,
-                height: 18,
+                width: 4, height: 18,
                 decoration: BoxDecoration(
                   color: AppColors.yellow,
                   borderRadius: BorderRadius.circular(4),
@@ -961,32 +1014,25 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
               const SizedBox(width: 8),
               const Text(
                 'Metode Pembayaran',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textDark,
-                ),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textDark),
               ),
               const SizedBox(width: 6),
               Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.red.shade50,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(
                   'Wajib diisi',
-                  style: TextStyle(
-                      fontSize: 9,
-                      color: Colors.red,
-                      fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 9, color: Colors.red, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 14),
-          // Quick select
+
+          // — quick select chips (tidak berubah) —
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1006,17 +1052,12 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 9),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primary
-                        : Colors.grey.shade50,
+                    color: isSelected ? AppColors.primary : Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: isSelected
-                          ? AppColors.primary
-                          : Colors.grey.shade300,
+                      color: isSelected ? AppColors.primary : Colors.grey.shade300,
                     ),
                   ),
                   child: Row(
@@ -1025,9 +1066,7 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
                       Icon(
                         opt['icon'] as IconData,
                         size: 15,
-                        color: isSelected
-                            ? Colors.white
-                            : Colors.grey.shade500,
+                        color: isSelected ? Colors.white : Colors.grey.shade500,
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -1035,9 +1074,7 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isSelected
-                              ? Colors.white
-                              : Colors.grey.shade700,
+                          color: isSelected ? Colors.white : Colors.grey.shade700,
                         ),
                       ),
                     ],
@@ -1047,26 +1084,23 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
             }).toList(),
           ),
           const SizedBox(height: 14),
-          // Manual input
+
+          // — text field manual (tidak berubah) —
           TextField(
             controller: _metodeBayarController,
             onChanged: (v) {
-              if (selectedMetodeBayar != null &&
-                  v != selectedMetodeBayar) {
+              if (selectedMetodeBayar != null && v != selectedMetodeBayar) {
                 setState(() => selectedMetodeBayar = null);
               }
             },
             style: const TextStyle(fontSize: 13),
             decoration: InputDecoration(
               hintText: 'Atau ketik metode lain...',
-              hintStyle: TextStyle(
-                  fontSize: 13, color: Colors.grey.shade400),
+              hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
               filled: true,
               fillColor: Colors.grey.shade50,
-              prefixIcon: const Icon(Icons.edit_rounded,
-                  size: 18, color: AppColors.textGrey),
-              contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 12),
+              prefixIcon: const Icon(Icons.edit_rounded, size: 18, color: AppColors.textGrey),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey.shade200),
@@ -1077,11 +1111,139 @@ class _DetailKomisiPageState extends State<DetailKomisiPage> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide:
-                const BorderSide(color: AppColors.primary, width: 1.5),
+                borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
               ),
             ),
           ),
+
+          // ✅ BARU — divider + input bukti gambar (opsional)
+          const SizedBox(height: 16),
+          Divider(color: Colors.grey.shade100, height: 1),
+          const SizedBox(height: 16),
+
+          Row(
+            children: [
+              Container(
+                width: 4, height: 18,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Bukti Pembayaran',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textDark),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Opsional',
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Preview gambar atau tombol tambah
+          if (_buktiImage != null) ...[
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    _buktiImage!,
+                    width: double.infinity,
+                    height: 180,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                // tombol hapus
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () => setState(() => _buktiImage = null),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close_rounded, color: Colors.white, size: 16),
+                    ),
+                  ),
+                ),
+                // tombol ganti
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit_rounded, color: Colors.white, size: 13),
+                          SizedBox(width: 4),
+                          Text('Ganti', style: TextStyle(color: Colors.white, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                width: double.infinity,
+                height: 110,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.grey.shade300,
+                    style: BorderStyle.solid,
+                    width: 1.5,
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.add_photo_alternate_rounded,
+                        size: 32, color: Colors.grey.shade400),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tambah bukti transfer / struk',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Ketuk untuk pilih dari kamera atau galeri',
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

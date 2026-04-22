@@ -4,6 +4,7 @@ import '../../../core/base_page.dart';
 import '../../../services/api_service.dart';
 import '../../../services/auth_service.dart';
 import '../../../utils/colors.dart';
+import 'package:intl/intl.dart';
 
 class TambahPesananPage extends StatefulWidget {
   const TambahPesananPage({super.key});
@@ -20,11 +21,18 @@ class _TambahPesananPageState extends State<TambahPesananPage> with BasePage {
   final _namaPelangganC   = TextEditingController();
   final _emailPelangganC  = TextEditingController();
   final _noHpC            = TextEditingController();
+  final _alamatPelangganC = TextEditingController();
   final _merekMobilC      = TextEditingController();
   final _modelMobilC      = TextEditingController();
   final _tahunMobilC      = TextEditingController();
   final _lokasiC          = TextEditingController();
   final _biayaC           = TextEditingController();
+
+  final _rupiahFormat = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  );
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -34,12 +42,34 @@ class _TambahPesananPageState extends State<TambahPesananPage> with BasePage {
     _namaPelangganC.dispose();
     _emailPelangganC.dispose();
     _noHpC.dispose();
+    _alamatPelangganC.dispose();
     _merekMobilC.dispose();
     _modelMobilC.dispose();
     _tahunMobilC.dispose();
     _lokasiC.dispose();
     _biayaC.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    _biayaC.addListener(() {
+      final text = _biayaC.text.replaceAll(RegExp(r'[^0-9]'), '');
+
+      if (text.isEmpty) return;
+
+      final number = int.parse(text);
+      final formatted = _rupiahFormat.format(number);
+
+      if (_biayaC.text != formatted) {
+        _biayaC.value = TextEditingValue(
+          text: formatted,
+          selection: TextSelection.collapsed(offset: formatted.length),
+        );
+      }
+    });
   }
 
   Future<void> _pickDate() async {
@@ -111,13 +141,14 @@ class _TambahPesananPageState extends State<TambahPesananPage> with BasePage {
         'nama_pelanggan'  : _namaPelangganC.text.trim(),
         'email_pelanggan' : _emailPelangganC.text.trim(),
         'no_hp_pelanggan' : _noHpC.text.trim(),
+        'alamat_pelanggan': _alamatPelangganC.text.trim(),
         'merek_mobil'     : _merekMobilC.text.trim(),
         'model_mobil'     : _modelMobilC.text.trim(),
         'tahun_mobil'     : _tahunMobilC.text.trim(),
         'lokasi'          : _lokasiC.text.trim(),
         'tanggal_inspeksi': _formatDateApi(_selectedDate!),
         'waktu_inspeksi'  : _formatTime(_selectedTime!),
-        'biaya'           : _biayaC.text.trim(),
+        'biaya': _biayaC.text.replaceAll(RegExp(r'[^0-9]'), ''),
       };
 
       final result = await ApiService.tambahPesanan(payload);
@@ -197,6 +228,15 @@ class _TambahPesananPageState extends State<TambahPesananPage> with BasePage {
                         validator: (v) =>
                         v!.isEmpty ? 'No. HP wajib diisi' : null,
                       ),
+
+                      _buildField(
+                        controller: _alamatPelangganC,
+                        label: 'Alamat Pelanggan',
+                        hint: 'Masukkan alamat lengkap',
+                        icon: Icons.home_outlined,
+                        validator: (v) =>
+                        v!.isEmpty ? 'Alamat pelanggan wajib diisi' : null,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -254,7 +294,7 @@ class _TambahPesananPageState extends State<TambahPesananPage> with BasePage {
                       _buildField(
                         controller: _biayaC,
                         label: 'Biaya Inspeksi',
-                        hint: '100000',
+                        hint: 'Rp 100.000',
                         icon: Icons.payments_outlined,
                         keyboardType: TextInputType.number,
                         inputFormatters: [
