@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../core/base_page.dart';
-import '../../services/api_service.dart';
 import '../../utils/colors.dart';
 import '../../utils/currency_format.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/transaction_card.dart';
-import '../../services/auth_service.dart';
-import '../tugas/tugas_page.dart';
-import '../../widgets/bottom_bar.dart';
 import 'dart:async';
 
 class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key});
+  // Tambahkan parameter penangkap data
+  final Map<String, dynamic> dashboardData;
+
+  const DashboardPage({super.key, required this.dashboardData});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -30,6 +29,7 @@ class _DashboardPageState extends State<DashboardPage> with BasePage {
     super.initState();
     _currentTime = DateTime.now();
 
+    // Jalankan timer untuk jam realtime
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
         setState(() {
@@ -276,7 +276,11 @@ class _DashboardPageState extends State<DashboardPage> with BasePage {
                 // PERBAIKAN 2: Berikan nilai default 'Pengguna' agar terhindar dari error "Halo, null!"
                 child: Text(
                   'Halo, ${header['nama_inspektor'] ?? 'Pengguna'}!',
-                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -318,7 +322,6 @@ class _DashboardPageState extends State<DashboardPage> with BasePage {
         children: [
           StatCard(
             label: 'Pendapatan\n(Selesai)',
-            // PERBAIKAN 3: Berikan fallback (?? 0) agar CurrencyFormat tidak pernah menerima null
             value: CurrencyFormat.toRupiah(statistik['pendapatan_selesai'] ?? 0),
             icon: Icons.wallet_outlined,
             iconBg: AppColors.yellow.withOpacity(0.2),

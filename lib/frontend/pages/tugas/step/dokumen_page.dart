@@ -172,6 +172,8 @@ class _DokumenPageState extends State<DokumenPage> {
 
     if (isStnk) {
       String? finalDateDb;
+      String? extractedDd;
+      String? extractedMm;
 
       RegExp wordDateRegExp = RegExp(r'\b([0-9A-Z]{1,2})\s+([A-Z0-9]{3,10})\s+(\d{4})\b');
       var wordMatch = wordDateRegExp.firstMatch(textUpper);
@@ -210,6 +212,8 @@ class _DokumenPageState extends State<DokumenPage> {
 
         if (int.tryParse(cleanDay) != null) {
           finalDateDb = "$yyyy-$mm-$dd";
+          extractedDd = dd;
+          extractedMm = mm;
         }
       }
       else {
@@ -221,12 +225,20 @@ class _DokumenPageState extends State<DokumenPage> {
           String mm = numMatches.first.group(2)!;
           String yyyy = numMatches.first.group(3)!;
           finalDateDb = "$yyyy-$mm-$dd";
+          extractedDd = dd;
+          extractedMm = mm;
         }
       }
 
-      if (finalDateDb != null) {
+      if (finalDateDb != null && extractedDd != null && extractedMm != null) {
         updateForm("pajak_5_tahun", finalDateDb);
         _getController("pajak_5_tahun").text = finalDateDb;
+
+        int currentYear = DateTime.now().year;
+        String autoPajak1Tahun = "$currentYear-$extractedMm-$extractedDd";
+
+        updateForm("pajak_1_tahun", autoPajak1Tahun);
+        _getController("pajak_1_tahun").text = autoPajak1Tahun;
       }
     }
 
