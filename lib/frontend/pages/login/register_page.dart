@@ -189,14 +189,14 @@ class _RegisterPageState extends State<RegisterPage> with BasePage {
                     const SizedBox(height: 12),
 
                     CustomTextField(
-                      hint: "Nama Instansi",
+                      hint: "Nama Perusahaan",
                       controller: namaInstansiController,
                       prefixIcon: Icons.business_outlined,
                     ),
                     const SizedBox(height: 12),
 
                     CustomTextField(
-                      hint: "Alamat Instansi",
+                      hint: "Alamat Perusahaan",
                       controller: alamatController,
                       prefixIcon: Icons.location_on_outlined,
                     ),

@@ -1,29 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:jip/frontend/pages/login/login_page.dart';
 import '../../core/base_page.dart';
-import '../../services/api_service.dart';
 import '../../utils/colors.dart';
 import '../../utils/currency_format.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/transaction_card.dart';
-import '../../services/auth_service.dart';
-import '../tugas/tugas_page.dart';
-import '../../widgets/bottom_bar.dart';
 import 'dart:async';
 
 class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key});
+  // Tambahkan parameter penangkap data
+  final Map<String, dynamic> dashboardData;
+
+  const DashboardPage({super.key, required this.dashboardData});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage>
-    with BasePage {
-  Map<String, dynamic>? dashboardData;
-  bool isLoading = true;
-  String? errorMessage;
-
+class _DashboardPageState extends State<DashboardPage> with BasePage {
   late DateTime _currentTime;
   Timer? _timer;
 
@@ -32,6 +25,7 @@ class _DashboardPageState extends State<DashboardPage>
     super.initState();
     _currentTime = DateTime.now();
 
+    // Jalankan timer untuk jam realtime
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
         setState(() {
@@ -47,137 +41,12 @@ class _DashboardPageState extends State<DashboardPage>
     super.dispose();
   }
 
-  // Ganti handleLogout dengan ini
-  void handleLogout() {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Icon
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.logout_rounded,
-                    color: Colors.red, size: 26),
-              ),
-              const SizedBox(height: 16),
-
-              // Judul
-              const Text(
-                'Keluar Aplikasi?',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textDark,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Subjudul
-              const Text(
-                'Kamu akan keluar dari akun ini.\nPastikan kamu sudah menyimpan data.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textGrey,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Tombol
-              Row(
-                children: [
-                  // Batal
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFDDDDDD)),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text(
-                        'Batal',
-                        style: TextStyle(
-                          color: AppColors.textGrey,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Ya, Keluar
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onPressed: () async {
-                        Navigator.pop(ctx);
-                        final result = await ApiService.logout();
-                        if (result["statusCode"] == 200) {
-                          await AuthService.logout();
-                          if (!mounted) return;
-                          Navigator.pushNamedAndRemoveUntil(
-                            context,
-                            '/login',
-                                (route) => false,
-                          );
-                        } else {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Gagal logout, coba lagi'),
-                              backgroundColor: Colors.red.shade400,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                            ),
-                          );
-                        }
-                      },
-                      child: const Text(
-                        'Ya, Keluar',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-
-    final header    = dashboardData!["header"]    as Map<String, dynamic>? ?? {};
-    final statistik = dashboardData!["statistik"] as Map<String, dynamic>? ?? {};
-    final riwayat   = dashboardData!["riwayat_transaksi"] as List? ?? [];
+    // Ambil data dari parameter Widget!
+    final header    = widget.dashboardData["header"]    as Map<String, dynamic>? ?? {};
+    final statistik = widget.dashboardData["statistik"] as Map<String, dynamic>? ?? {};
+    final riwayat   = widget.dashboardData["riwayat_transaksi"] as List? ?? [];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -234,7 +103,6 @@ class _DashboardPageState extends State<DashboardPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Greeting + badge status
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -284,14 +152,12 @@ class _DashboardPageState extends State<DashboardPage>
             ],
           ),
           const SizedBox(height: 8),
-
-          // Nama + waktu sejajar
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Text(
-                  'Halo, ${header['nama_inspektor']}!',
+                  'Halo, ${header['nama_inspektor'] ?? 'Pengguna'}!',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
@@ -300,7 +166,6 @@ class _DashboardPageState extends State<DashboardPage>
                 ),
               ),
               const SizedBox(width: 12),
-              // Waktu di kanan
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -355,7 +220,6 @@ class _DashboardPageState extends State<DashboardPage>
     return '$h:$m:$s WIB';
   }
 
-  // ── STAT ROW ─────────────────────────────────────────────────
   Widget _buildStatRow(Map<String, dynamic> statistik) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -364,8 +228,7 @@ class _DashboardPageState extends State<DashboardPage>
         children: [
           StatCard(
             label: 'Pendapatan\n(Selesai)',
-            // ← format rupiah
-            value: CurrencyFormat.toRupiah(statistik['pendapatan_selesai']),
+            value: CurrencyFormat.toRupiah(statistik['pendapatan_selesai'] ?? 0),
             icon: Icons.wallet_outlined,
             iconBg: AppColors.yellow.withOpacity(0.2),
             iconColor: AppColors.yellow,
@@ -391,7 +254,6 @@ class _DashboardPageState extends State<DashboardPage>
     );
   }
 
-  // ── TRANSACTION LIST — card fixed, isi yang scroll ────────────
   Widget _buildTransactionList(List riwayat) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -409,7 +271,6 @@ class _DashboardPageState extends State<DashboardPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Judul — padding bawah 0 supaya tidak ada jarak ke list
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Text(
@@ -421,14 +282,10 @@ class _DashboardPageState extends State<DashboardPage>
               ),
             ),
           ),
-
-          // Divider tipis langsung di bawah judul
           const Divider(height: 12, thickness: 0.5, color: Color(0xFFEEEEEE)),
-
-          // ListView yang scroll di dalam card
           Expanded(
             child: ListView.builder(
-              padding: EdgeInsets.zero,  // ← hapus padding default
+              padding: EdgeInsets.zero,
               itemCount: riwayat.length,
               itemBuilder: (context, index) =>
                   TransactionCard(item: riwayat[index]),

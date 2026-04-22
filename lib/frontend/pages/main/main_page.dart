@@ -26,13 +26,6 @@ class _MainPageState extends State<MainPage> {
 
   late PageController _pageController;
 
-  final List<Widget> _pages = [
-    const DashboardPage(),
-    const TugasPage(),
-    const SlipKomisiPage(),
-    const ProfilePage(),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -129,8 +122,7 @@ class _MainPageState extends State<MainPage> {
               ),
               const SizedBox(height: 16),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
                 onPressed: () {
                   setState(() {
                     isLoading = true;
@@ -138,14 +130,22 @@ class _MainPageState extends State<MainPage> {
                   });
                   fetchDashboard();
                 },
-                child: const Text('Coba Lagi',
-                    style: TextStyle(color: Colors.white)),
+                child: const Text('Coba Lagi', style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
         ),
       );
     }
+
+    // PINDAHKAN LIST HALAMAN KE SINI!
+    // Kirim dashboardData yang sudah didapat ke DashboardPage
+    final List<Widget> pages = [
+      DashboardPage(dashboardData: dashboardData!), // <-- Ini kuncinya
+      const TugasPage(),
+      const SlipKomisiPage(),
+      const ProfilePage(),
+    ];
 
     return Scaffold(
       body: PageView(
@@ -155,7 +155,7 @@ class _MainPageState extends State<MainPage> {
             _currentIndex = index;
           });
         },
-        children: _pages,
+        children: pages, // Gunakan list yang ada di atas
       ),
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _currentIndex,
