@@ -32,13 +32,13 @@ class _KakiKakiPageState extends State<KakiKakiPage> {
 
   /// 🔥 FALLBACK ID (kalau API gagal)
   static const Map<String, int> fallbackMap = {
-    "Rack Stir": 51,
-    "Power Steering": 52,
-    "Rem": 53,
-    "Suspensi": 54,
-    "Tahun Ban dan Ketebalan": 55,
-    "Ban Serap": 56,
-    "Velg": 57,
+    "Rack Stir": 52,
+    "Power Steering": 53,
+    "Rem": 54,
+    "Suspensi": 55,
+    "Tahun Ban dan Ketebalan": 56,
+    "Ban Serap": 57,
+    "Velg": 58,
   };
 
   /// 🔥 MAP DINAMIS DARI API
