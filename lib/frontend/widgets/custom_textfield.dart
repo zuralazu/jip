@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-class CustomTextField extends StatelessWidget {
+class CustomTextField extends StatefulWidget {
   final String hint;
   final bool isPassword;
   final IconData? prefixIcon;
   final TextEditingController controller;
-  final TextInputType? keyboardType; // 🔥 Tambahkan field ini
+  final TextInputType? keyboardType;
 
   const CustomTextField({
     super.key,
@@ -13,18 +13,27 @@ class CustomTextField extends StatelessWidget {
     required this.controller,
     this.isPassword = false,
     this.prefixIcon,
-    this.keyboardType, // 🔥 Tambahkan ke constructor
+    this.keyboardType,
   });
+
+  @override
+  State<CustomTextField> createState() => _CustomTextFieldState();
+}
+
+class _CustomTextFieldState extends State<CustomTextField> {
+  // 🔥 State untuk toggle visibility, default tersembunyi
+  bool _obscureText = true;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
-      controller: controller,
-      obscureText: isPassword,
-      keyboardType: keyboardType, // 🔥 Gunakan di sini
+      controller: widget.controller,
+      // 🔥 Kalau bukan password, selalu visible. Kalau password, ikut state
+      obscureText: widget.isPassword ? _obscureText : false,
+      keyboardType: widget.keyboardType,
       style: const TextStyle(color: Colors.white, fontSize: 14),
       decoration: InputDecoration(
-        hintText: hint,
+        hintText: widget.hint,
         hintStyle: TextStyle(
           color: Colors.white.withOpacity(0.35),
           fontSize: 14,
@@ -35,13 +44,26 @@ class CustomTextField extends StatelessWidget {
           horizontal: 16,
           vertical: 15,
         ),
-        prefixIcon: prefixIcon != null
-            ? Icon(prefixIcon,
+        prefixIcon: widget.prefixIcon != null
+            ? Icon(widget.prefixIcon,
             color: Colors.white.withOpacity(0.5), size: 18)
             : null,
-        suffixIcon: isPassword
-            ? Icon(Icons.visibility_off_outlined,
-            color: Colors.white.withOpacity(0.35), size: 18)
+        // 🔥 suffixIcon sekarang punya onPressed yang berfungsi
+        suffixIcon: widget.isPassword
+            ? IconButton(
+          icon: Icon(
+            _obscureText
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
+            color: Colors.white.withOpacity(0.5),
+            size: 18,
+          ),
+          onPressed: () {
+            setState(() {
+              _obscureText = !_obscureText;
+            });
+          },
+        )
             : null,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -49,7 +71,8 @@ class CustomTextField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.5), width: 1.5),
+          borderSide:
+          BorderSide(color: Colors.white.withOpacity(0.5), width: 1.5),
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
