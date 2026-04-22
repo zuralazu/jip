@@ -7,14 +7,8 @@ class TugasCard extends StatelessWidget {
   final Map<String, dynamic> item;
   final VoidCallback? onNavigateBack;
 
-  const TugasCard({super.key, required this.item, this.onNavigateBack,});
+  const TugasCard({super.key, required this.item, this.onNavigateBack});
 
-  void _launchWhatsApp(String noHp) async {
-    final phone = noHp.replaceAll(RegExp(r'[^0-9]'), '');
-    final formatted = phone.startsWith('0') ? '62${phone.substring(1)}' : phone;
-    final uri = Uri.parse('https://wa.me/$formatted');
-    if (await canLaunchUrl(uri)) launchUrl(uri);
-  }
 
   void _launchWeb(String url) async {
     final uri = Uri.parse(url.startsWith('http') ? url : 'https://$url');
@@ -25,16 +19,17 @@ class TugasCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String namaMobil     = item['nama_mobil']       ?? '-';
-    final String tanggal       = item['tanggal_waktu']          ?? '-';
-    final String jam           = item['jam']                    ?? '';
-    final String status        = item['status']           ?? 'Proses Inspeksi';
-    final String namaPelanggan = item['nama_pelanggan']   ?? '-';
-    final String noHp          = item['no_hp_pelanggan']  ?? '';
-    final String lokasi        = item['lokasi_inspeksi']  ?? '-';
-    final String paket         = item['paket_layanan']            ?? '-';
-    final String urlLaporan    = item['url_laporan']      ?? '';
-    final String urlWeb        = item['url_web']          ?? '';
+    final String namaMobil     = item['nama_mobil']      ?? '-';
+    final String tanggal       = item['tanggal_waktu']   ?? '-';
+    final String jam           = item['jam']             ?? '';
+    final String status        = item['status_inspeksi'] ?? 'pending';
+    final String namaPelanggan = item['nama_pelanggan']  ?? '-';
+    final String noHp          = item['no_hp']           ?? '';
+    final String lokasi        = item['lokasi_inspeksi'] ?? '-';
+    final String paket         = item['paket_layanan']   ?? '-';
+    final String urlWeb        = item['url_web']         ?? '';
+
+    final bool isSelesai = status.toLowerCase() == 'selesai'; // ← di sini
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -80,18 +75,12 @@ class TugasCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
             child: Row(
               children: [
-                const Icon(
-                  Icons.calendar_today_outlined,
-                  size: 13,
-                  color: AppColors.textGrey,
-                ),
+                const Icon(Icons.calendar_today_outlined,
+                    size: 13, color: AppColors.textGrey),
                 const SizedBox(width: 5),
                 Text(
-                  jam.isNotEmpty ? '$tanggal' : tanggal,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textGrey,
-                  ),
+                  tanggal,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textGrey),
                 ),
               ],
             ),
@@ -120,11 +109,8 @@ class TugasCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(
-                            Icons.person_outline_rounded,
-                            size: 14,
-                            color: AppColors.textGrey,
-                          ),
+                          const Icon(Icons.person_outline_rounded,
+                              size: 14, color: AppColors.textGrey),
                           const SizedBox(width: 5),
                           Text(
                             namaPelanggan,
@@ -139,41 +125,6 @@ class TugasCard extends StatelessWidget {
                     ],
                   ),
                 ),
-
-                // Tombol WhatsApp
-                if (noHp.isNotEmpty)
-                  GestureDetector(
-                    onTap: () => _launchWhatsApp(noHp),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF25D366),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.phone_outlined,
-                            color: Colors.white,
-                            size: 15,
-                          ),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Hubungi',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -202,11 +153,8 @@ class TugasCard extends StatelessWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.location_on_rounded,
-                            size: 14,
-                            color: Colors.red,
-                          ),
+                          const Icon(Icons.location_on_rounded,
+                              size: 14, color: Colors.red),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -223,9 +171,7 @@ class TugasCard extends StatelessWidget {
                     ],
                   ),
                 ),
-
                 const SizedBox(width: 12),
-
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -260,31 +206,36 @@ class TugasCard extends StatelessWidget {
               height: 44,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.yellow,
+                  backgroundColor:
+                  isSelesai ? Colors.grey.shade200 : AppColors.yellow,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                      borderRadius: BorderRadius.circular(12)),
                 ),
-                onPressed: () {
+                onPressed: isSelesai
+                    ? null
+                    : () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => DetailInspeksiPage(dataTugas: item, orderId: item['order_id'],),
+                      builder: (_) => DetailInspeksiPage(
+                        dataTugas: item,
+                        orderId: item['order_id'],
+                      ),
                     ),
-                  ).then((_) {
-                    onNavigateBack?.call(); // 🔥 panggil callback setelah balik
-                  });
+                  ).then((_) => onNavigateBack?.call());
                 },
-                icon: const Icon(
+                icon: Icon(
                   Icons.edit_note_rounded,
-                  color: AppColors.primary,
+                  color: isSelesai ? Colors.grey.shade400 : AppColors.primary,
                   size: 18,
                 ),
-                label: const Text(
+                label: Text(
                   'Isi Laporan Inspeksi',
                   style: TextStyle(
-                    color: AppColors.primary,
+                    color: isSelesai
+                        ? Colors.grey.shade400
+                        : AppColors.primary,
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
@@ -293,7 +244,7 @@ class TugasCard extends StatelessWidget {
             ),
           ),
 
-          // ── TOMBOL WEB ─────────────────────────────────────
+          // ── TOMBOL SUMMARY ─────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: SizedBox(
@@ -301,23 +252,28 @@ class TugasCard extends StatelessWidget {
               height: 44,
               child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFDDDDDD)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: isSelesai
+                        ? AppColors.primary
+                        : Colors.grey.shade300,
                   ),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
-                onPressed: urlWeb.isNotEmpty
+                onPressed: isSelesai && urlWeb.isNotEmpty
                     ? () => _launchWeb(urlWeb)
                     : null,
-                icon: const Icon(
-                  Icons.language_rounded,
-                  color: AppColors.primary,
+                icon: Icon(
+                  Icons.summarize_rounded,
+                  color: isSelesai ? AppColors.primary : Colors.grey.shade400,
                   size: 16,
                 ),
-                label: const Text(
-                  'Web',
+                label: Text(
+                  'Summary',
                   style: TextStyle(
-                    color: AppColors.primary,
+                    color: isSelesai
+                        ? AppColors.primary
+                        : Colors.grey.shade400,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -342,7 +298,7 @@ class _StatusBadge extends StatelessWidget {
     Color fg;
 
     switch (status.toLowerCase()) {
-      case 'proses inspeksi':
+      case 'pending':
         bg = AppColors.yellow;
         fg = AppColors.primary;
         break;

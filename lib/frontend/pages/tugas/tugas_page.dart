@@ -14,10 +14,25 @@ class TugasPage extends StatefulWidget {
   State<TugasPage> createState() => _TugasPageState();
 }
 
-class _TugasPageState extends State<TugasPage>
-    with BasePage {
+class _TugasPageState extends State<TugasPage> with BasePage {
   List tugasList = [];
   bool isLoading = true;
+  String _selectedFilter = 'Semua';
+
+  final List<Map<String, String>> _filters = [
+    {'key': 'Semua',    'label': 'Semua'},
+    {'key': 'pending',  'label': 'Proses Inspeksi'},
+    {'key': 'selesai',  'label': 'Selesai'},
+  ];
+
+  List get _filteredList {
+    if (_selectedFilter == 'Semua') return tugasList;
+    return tugasList
+        .where((t) =>
+    (t['status_inspeksi'] ?? '').toString().toLowerCase() ==
+        _selectedFilter.toLowerCase())
+        .toList();
+  }
 
   @override
   void initState() {
@@ -28,7 +43,6 @@ class _TugasPageState extends State<TugasPage>
   void fetchTugas() async {
     try {
       final result = await ApiService.getTugas();
-
       if (result["statusCode"] == 200) {
         final body = result["data"];
 
@@ -50,31 +64,17 @@ class _TugasPageState extends State<TugasPage>
         });
       }
     } catch (e) {
-      handleApiError(e); // 🔥 AUTO HANDLE TOKEN EXPIRED
-
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
+      handleApiError(e);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
   void _onNavTap(int index) {
-
     switch (index) {
-      case 0:
-        Navigator.pushReplacementNamed(context, '/dashboard');
-        break;
-      case 1:
-        Navigator.pushReplacementNamed(context, '/tugas');
-        break;
-      case 2:
-        Navigator.pushReplacementNamed(context, '/slip-komisi');
-        break;
-      case 3:
-        Navigator.pushReplacementNamed(context, '/profile');
-        break;
+      case 0: Navigator.pushReplacementNamed(context, '/dashboard'); break;
+      case 1: Navigator.pushReplacementNamed(context, '/tugas'); break;
+      case 2: Navigator.pushReplacementNamed(context, '/slip-komisi'); break;
+      case 3: Navigator.pushReplacementNamed(context, '/profile'); break;
     }
   }
 
@@ -85,6 +85,7 @@ class _TugasPageState extends State<TugasPage>
       body: Column(
         children: [
           _buildHeader(),
+          _buildFilterChips(),   // ← chip baru
           Expanded(child: _buildBody()),
         ],
       ),
@@ -95,14 +96,8 @@ class _TugasPageState extends State<TugasPage>
         },
         backgroundColor: AppColors.yellow,
         elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        icon: const Icon(
-          Icons.add_rounded,
-          color: AppColors.primary,
-          size: 20,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(Icons.add_rounded, color: AppColors.primary, size: 20),
         label: const Text(
           'Tambah Pesanan',
           style: TextStyle(
@@ -115,17 +110,14 @@ class _TugasPageState extends State<TugasPage>
     );
   }
 
+  // ── HEADER ────────────────────────────────────────────────────
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2)),
         ],
       ),
       padding: EdgeInsets.only(
@@ -154,7 +146,7 @@ class _TugasPageState extends State<TugasPage>
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                '${tugasList.length} Tugas Aktif',
+                '${tugasList.where((t) => (t['status_inspeksi'] ?? '').toString().toLowerCase() == 'pending').length} Tugas Aktif',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 11,
@@ -167,6 +159,49 @@ class _TugasPageState extends State<TugasPage>
     );
   }
 
+  // ── FILTER CHIPS ──────────────────────────────────────────────
+  Widget _buildFilterChips() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: _filters.map((tab) {  // ← pakai _filters langsung
+          final isActive = _selectedFilter == tab['key'];
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedFilter = tab['key']!),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: isActive ? AppColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isActive
+                        ? AppColors.primary
+                        : Colors.grey.shade300,
+                  ),
+                ),
+                child: Text(
+                  tab['label']!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isActive ? Colors.white : Colors.grey.shade600,
+                    fontSize: 12,
+                    fontWeight:
+                    isActive ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ── BODY ──────────────────────────────────────────────────────
   Widget _buildBody() {
     if (isLoading) {
       return const Center(
@@ -174,7 +209,7 @@ class _TugasPageState extends State<TugasPage>
       );
     }
 
-    if (tugasList.isEmpty) {
+    if (_filteredList.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -182,13 +217,16 @@ class _TugasPageState extends State<TugasPage>
             Icon(Icons.assignment_outlined,
                 size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            const Text(
-              'Belum ada tugas',
-              style: TextStyle(
+            Text(
+              _selectedFilter == 'Semua'
+                  ? 'Belum ada tugas'
+                  : 'Tidak ada tugas "${_filters.firstWhere((f) => f['key'] == _selectedFilter)['label']}"',
+              style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textGrey,
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             const Text(
@@ -203,14 +241,12 @@ class _TugasPageState extends State<TugasPage>
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: () async => fetchTugas(),
-      // Di dalam _TugasPageState, ganti ListView.builder jadi ini:
       child: ListView.builder(
-        // Ganti padding di _buildBody ListView
         padding: const EdgeInsets.only(top: 12, bottom: 90),
-        itemCount: tugasList.length,
+        itemCount: _filteredList.length,
         itemBuilder: (context, index) => TugasCard(
-          item: tugasList[index],
-          onNavigateBack: fetchTugas, // 🔥 refresh list setelah balik dari detail
+          item: _filteredList[index],
+          onNavigateBack: fetchTugas,
         ),
       ),
     );
