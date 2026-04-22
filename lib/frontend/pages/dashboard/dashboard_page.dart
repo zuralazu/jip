@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/base_page.dart';
+import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 import '../../utils/colors.dart';
 import '../../utils/currency_format.dart';
 import '../../widgets/stat_card.dart';
@@ -363,7 +365,7 @@ class _DashboardPageState extends State<DashboardPage> with BasePage {
         children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Text('Riwayat Share Cost Transaksi', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+            child: Text('Riwayat Transaksi', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark)),
           ),
           const Divider(height: 12, thickness: 0.5, color: Color(0xFFEEEEEE)),
           Expanded(
