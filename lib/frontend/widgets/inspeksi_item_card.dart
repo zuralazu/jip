@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/colors.dart';
 import 'foto_upload_box.dart';
+import '../utils/image_utils.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -435,26 +436,28 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
   Future<void> _pickFromCamera() async {
     final XFile? image = await _picker.pickImage(
       source: ImageSource.camera,
-      imageQuality: 70,
     );
 
     if (image != null) {
+      final compressed = await ImageUtils.compressImage(File(image.path));
       setState(() {
-        fotoKerusakan.add(File(image.path));
+        fotoKerusakan.add(compressed); // ← pakai file hasil compress
       });
+      saveAll();
     }
   }
 
   Future<void> _pickFromGallery() async {
     final XFile? image = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 70,
     );
 
     if (image != null) {
+      final compressed = await ImageUtils.compressImage(File(image.path));
       setState(() {
-        fotoKerusakan.add(File(image.path));
+        fotoKerusakan.add(compressed); // ← pakai file hasil compress
       });
+      saveAll();
     }
   }
 
