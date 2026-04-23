@@ -1,6 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+// import 'package:open_file/open_file.dart';
+// import 'package:share_plus/share_plus.dart';
+
 
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
@@ -894,5 +898,57 @@ class ApiService {
     print('BODY: ${response.body}');
 
     return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> getDetailTugas(int orderId) async {
+    final token = await AuthService.getToken();
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/tugas/detail/$orderId'),  // ← sesuaikan endpoint-nya
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    return _handleResponse(response);
+  }
+
+  static Future<String> downloadLaporanPdf(int komisiId, String namaFile) async {
+    final token = await AuthService.getToken();
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/laporan/$komisiId/pdf'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/pdf',
+      },
+    );
+
+    print('=== DOWNLOAD PDF ===');
+    print('STATUS: ${response.statusCode}');
+
+    if (response.statusCode != 200) {
+      String msg = 'Gagal download PDF (${response.statusCode})';
+      try { msg = jsonDecode(response.body)['message'] ?? msg; } catch (_) {}
+      throw Exception(msg);
+    }
+
+    // Pakai getExternalStorageDirectory — tidak butuh permission, pasti bisa diakses
+    Directory saveDir;
+
+    if (Platform.isAndroid) {
+      final extDir = await getExternalStorageDirectory();
+      // Path: /storage/emulated/0/Android/data/com.yourapp/files/
+      saveDir = extDir ?? await getApplicationDocumentsDirectory();
+    } else {
+      saveDir = await getApplicationDocumentsDirectory();
+    }
+
+    final file = File('${saveDir.path}/$namaFile.pdf');
+    await file.writeAsBytes(response.bodyBytes);
+
+    print('PDF TERSIMPAN DI: ${file.path}');
+    return file.path;
   }
 }

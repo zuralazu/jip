@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../pages/tugas/detail_inspeksi_page.dart';
 import '../utils/colors.dart';
+import '../pages/tugas/summary_page.dart';
 
 class TugasCard extends StatelessWidget {
   final Map<String, dynamic> item;
@@ -30,6 +31,11 @@ class TugasCard extends StatelessWidget {
     final String urlWeb        = item['url_web']         ?? '';
 
     final bool isSelesai = status.toLowerCase() == 'selesai'; // ← di sini
+
+    print('=== ITEM DATA ===');
+    print(item.keys.toList());
+    print('order_id: ${item['order_id']}');
+    print('komisi_id: ${item['komisi_id']}');
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -262,6 +268,16 @@ class TugasCard extends StatelessWidget {
                 ),
                 onPressed: isSelesai && urlWeb.isNotEmpty
                     ? () => _launchWeb(urlWeb)
+                    : isSelesai
+                    ? () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SummaryPage(
+                      orderId: item['order_id'],
+                      dataTugas: item,
+                    ),
+                  ),
+                )
                     : null,
                 icon: Icon(
                   Icons.summarize_rounded,
@@ -294,6 +310,7 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     Color bg;
     Color fg;
 

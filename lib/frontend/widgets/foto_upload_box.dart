@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../utils/colors.dart';
+import '../utils/image_utils.dart';
 
 class FotoUploadBox extends StatelessWidget {
   final String label;
@@ -37,7 +38,13 @@ class FotoUploadBox extends StatelessWidget {
                 );
 
                 if (image != null && onImagePicked != null) {
-                  onImagePicked!(File(image.path));
+                  final compressed = await ImageUtils.compressImage(
+                    File(image.path),
+                    quality: 70,
+                    maxWidth: 1280,
+                    maxHeight: 1280,
+                  );
+                  onImagePicked!(compressed);
                 }
               },
             ),
