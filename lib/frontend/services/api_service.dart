@@ -338,6 +338,51 @@ class ApiService {
     return {"statusCode": statusCode, "data": data};
   }
 
+  static Future<Map<String, dynamic>> getInterior(int orderId) async {
+    final token = await AuthService.getToken();
+    final response = await http.get(
+      Uri.parse("$baseUrl/tugas/$orderId/interior"),
+      headers: {"Authorization": "Bearer $token", "Accept": "application/json"},
+    );
+    print("=== GET INTERIOR ===");
+    print("STATUS: ${response.statusCode}");
+    print("BODY: ${response.body}");
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> getEksterior(int orderId) async {
+    final token = await AuthService.getToken();
+    final response = await http.get(
+      Uri.parse("$baseUrl/tugas/$orderId/eksterior"),
+      headers: {"Authorization": "Bearer $token", "Accept": "application/json"},
+    );
+    print("=== GET EKSTERIOR ===");
+    print("STATUS: ${response.statusCode}");
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> getMesin(int orderId) async {
+    final token = await AuthService.getToken();
+    final response = await http.get(
+      Uri.parse("$baseUrl/tugas/$orderId/mesin"),
+      headers: {"Authorization": "Bearer $token", "Accept": "application/json"},
+    );
+    print("=== GET MESIN ===");
+    print("STATUS: ${response.statusCode}");
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> getKakiKaki(int orderId) async {
+    final token = await AuthService.getToken();
+    final response = await http.get(
+      Uri.parse("$baseUrl/tugas/$orderId/kaki-kaki"),
+      headers: {"Authorization": "Bearer $token", "Accept": "application/json"},
+    );
+    print("=== GET KAKI-KAKI ===");
+    print("STATUS: ${response.statusCode}");
+    return _handleResponse(response);
+  }
+
   static Future<List<dynamic>> getKategoriItems() async {
     final token = await AuthService.getToken();
 

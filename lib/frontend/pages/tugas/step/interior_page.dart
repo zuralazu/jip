@@ -122,12 +122,26 @@ class _InteriorPageState extends State<InteriorPage> {
 
     if (itemId != null) {
       Map<String, dynamic> safeValue;
+
       if (value is Map) {
-        safeValue = Map<String, dynamic>.from(value);
+        // ✅ FIX: Eksplisit ambil tiap field, bukan Map.from() langsung
+        safeValue = {
+          "kondisi": value["kondisi"]?.toString() ?? "normal",
+          "catatan": value["catatan"]?.toString() ?? "",
+          "foto": value["foto"],
+          "foto_kerusakan": value["foto_kerusakan"],
+        };
       } else {
-        safeValue = {"kondisi": "normal", "catatan": ""};
+        safeValue = {
+          "kondisi": "normal",
+          "catatan": "",
+          "foto": null,
+          "foto_kerusakan": null,
+        };
       }
+
       updated[itemId.toString()] = safeValue;
+      print("INTERIOR UPDATE: $itemName → ID $itemId → kondisi=${safeValue['kondisi']}");
     }
 
     updated[itemName] = value;

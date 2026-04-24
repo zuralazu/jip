@@ -44,26 +44,25 @@ class _EksteriorPageState extends State<EksteriorPage> {
 
   // 🔥 FALLBACK ID sesuai JSON backend
   static const Map<String, int> fallbackMap = {
-    "Foto Depan Kendaraan": 17,
-    "Kap Mesin": 18,
-    "Bumper Depan": 19,
-    "Lampu Depan": 20,
-    "Fender Depan Kiri": 21,
-    "Fender Depan Kanan": 22,
-    "Pintu Depan Kiri": 23,
-    "Pilar A": 24,
-    "Pilar B": 25,
-    "Pilar C": 26,
-    "Pintu Belakang Kiri": 27,
-    "Quarter Kiri": 28,
-    "Pintu Bagasi": 29,
-    "End Panel": 30,
-    "Stop Lamp": 31,
-    "Quarter Kanan": 32,
-    "Pintu Belakang Kanan": 33,
-    "Kaca Mobil / Seal": 34,
-    "List Plang Bawah": 35,
-    "Spion": 36,
+    "Kap Mesin": 17,
+    "Bumper Depan": 18,
+    "Lampu Depan": 19,
+    "Fender Depan Kiri": 20,
+    "Fender Depan Kanan": 21,
+    "Pintu Depan Kiri": 22,
+    "Pilar A": 23,
+    "Pilar B": 24,
+    "Pilar C": 25,
+    "Pintu Belakang Kiri": 26,
+    "Quarter Kiri": 27,
+    "Pintu Bagasi": 28,
+    "End Panel": 29,
+    "Stop Lamp": 30,
+    "Quarter Kanan": 31,
+    "Pintu Belakang Kanan": 32,
+    "Kaca Mobil / Seal": 33,
+    "List Plang Bawah": 34,
+    "Spion": 35,
   };
 
   Map<String, int> itemIdMap = {};
@@ -130,12 +129,25 @@ class _EksteriorPageState extends State<EksteriorPage> {
 
     if (itemId != null) {
       Map<String, dynamic> safeValue;
+
       if (value is Map) {
-        safeValue = Map<String, dynamic>.from(value);
+        safeValue = {
+          "kondisi": value["kondisi"]?.toString() ?? "normal",
+          "catatan": value["catatan"]?.toString() ?? "",
+          "foto": value["foto"],
+          "foto_kerusakan": value["foto_kerusakan"],
+        };
       } else {
-        safeValue = {"kondisi": "normal", "catatan": ""};
+        safeValue = {
+          "kondisi": "normal",
+          "catatan": "",
+          "foto": null,
+          "foto_kerusakan": null,
+        };
       }
+
       updated[itemId.toString()] = safeValue;
+      print("EKSTERIOR UPDATE: $itemName → ID $itemId → kondisi=${safeValue['kondisi']}");
     }
 
     updated[itemName] = value;
