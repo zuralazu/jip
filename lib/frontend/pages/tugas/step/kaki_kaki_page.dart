@@ -115,7 +115,7 @@ class _KakiKakiPageState extends State<KakiKakiPage> {
         // ✅ FIX Bug 2: Eksplisit ambil setiap field dari Map
         // Bukan Map.from() yang kadang tidak preserve tipe dengan benar
         safeValue = {
-          "kondisi": value["kondisi"]?.toString() ?? "normal",
+          "kondisi": value["status_kondisi"]?.toString() ?? "normal",
           "catatan": value["catatan"]?.toString() ?? "",
           "foto": value["foto"],
           "foto_kerusakan": value["foto_kerusakan"],

@@ -123,7 +123,7 @@ class _MesinPageState extends State<MesinPage> {
 
       if (value is Map) {
         safeValue = {
-          "kondisi": value["kondisi"]?.toString() ?? "normal",
+          "kondisi": value["status_kondisi"]?.toString() ?? "normal",
           "catatan": value["catatan"]?.toString() ?? "",
           "foto": value["foto"],
           "foto_kerusakan": value["foto_kerusakan"],

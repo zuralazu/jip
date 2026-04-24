@@ -126,7 +126,7 @@ class _InteriorPageState extends State<InteriorPage> {
       if (value is Map) {
         // ✅ FIX: Eksplisit ambil tiap field, bukan Map.from() langsung
         safeValue = {
-          "kondisi": value["kondisi"]?.toString() ?? "normal",
+          "kondisi": value["status_kondisi"]?.toString() ?? "normal",
           "catatan": value["catatan"]?.toString() ?? "",
           "foto": value["foto"],
           "foto_kerusakan": value["foto_kerusakan"],
