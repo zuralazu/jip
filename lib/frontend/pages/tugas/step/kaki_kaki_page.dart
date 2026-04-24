@@ -19,7 +19,6 @@ class KakiKakiPage extends StatefulWidget {
 
 class _KakiKakiPageState extends State<KakiKakiPage> {
 
-  /// 🔥 STATIC UI (TETAP)
   static const List<String> _items = [
     'Rack Stir',
     'Power Steering',
@@ -30,18 +29,17 @@ class _KakiKakiPageState extends State<KakiKakiPage> {
     'Velg',
   ];
 
-  /// 🔥 FALLBACK ID (kalau API gagal)
+  // ✅ Fallback ID — semua 7 item (51–57)
   static const Map<String, int> fallbackMap = {
-    "Rack Stir": 52,
-    "Power Steering": 53,
-    "Rem": 54,
-    "Suspensi": 55,
-    "Tahun Ban dan Ketebalan": 56,
-    "Ban Serap": 57,
-    "Velg": 58,
+    "Rack Stir": 51,
+    "Power Steering": 52,
+    "Rem": 53,
+    "Suspensi": 54,
+    "Tahun Ban dan Ketebalan": 55,
+    "Ban Serap": 56,
+    "Velg": 57,
   };
 
-  /// 🔥 MAP DINAMIS DARI API
   Map<String, int> itemIdMap = {};
 
   @override
@@ -51,81 +49,98 @@ class _KakiKakiPageState extends State<KakiKakiPage> {
     loadItemIds();
   }
 
-  /// 🔥 LOAD DARI API (OPSIONAL, FALLBACK ADA)
-  // ✅ Contoh di KakiKakiPage
   Future<void> loadItemIds() async {
     try {
       final kategori = await ApiService.getKategoriItems();
 
-      // 🔥 Pastikan list of Map, bukan list of String
-      if (kategori.isEmpty || kategori.first is! Map) {
-        print("KATEGORI DATA TIDAK VALID, pakai fallback");
-        return; // langsung pakai fallbackMap
-      }
-
-      final kakiKategori = kategori.firstWhere(
-            (k) => k["nama_kategori"].toString().toLowerCase().contains("kaki"),
-        orElse: () => null, // 🔥 jangan crash
-      );
-
-      if (kakiKategori == null) {
-        print("KATEGORI KAKI TIDAK DITEMUKAN, pakai fallback");
+      if (kategori.isEmpty) {
+        print("KATEGORI KOSONG, pakai fallback kaki-kaki");
         return;
       }
 
-      final Map<String, int> tempMap = {};
-      for (var item in kakiKategori["daftar_item"]) {
-        tempMap[item["nama_item"]] = item["item_id"];
+      // ✅ FIX Bug 3: Gunakan for-loop biasa, BUKAN firstWhere dengan orElse: () => null
+      // firstWhere di Dart tidak bisa return null untuk tipe non-nullable,
+      // menyebabkan exception yang membuat itemIdMap tetap kosong,
+      // sehingga hanya item yang ID-nya kebetulan sudah ada yang tersimpan.
+      Map<String, dynamic>? targetKategori;
+      for (final k in kategori) {
+        if (k is Map && k["nama_kategori"].toString().toLowerCase().contains("kaki")) {
+          targetKategori = Map<String, dynamic>.from(k);
+          break;
+        }
       }
 
+      if (targetKategori == null) {
+        print("KATEGORI KAKI TIDAK DITEMUKAN, pakai fallback");
+        return; // fallbackMap akan dipakai otomatis di updateItem
+      }
+
+      final Map<String, int> tempMap = {};
+      final daftarItem = targetKategori["daftar_item"];
+
+      if (daftarItem is List) {
+        for (final item in daftarItem) {
+          if (item is Map) {
+            tempMap[item["nama_item"].toString()] = item["item_id"] as int;
+          }
+        }
+      }
+
+      print("KAKI-KAKI ITEM ID MAP: ${tempMap.length} items → $tempMap");
       setState(() => itemIdMap = tempMap);
 
     } catch (e) {
-      print("ERROR LOAD KAKI-KAKI: $e");
-      // fallbackMap otomatis dipakai di build()
+      print("ERROR LOAD KAKI-KAKI ITEM IDS: $e — menggunakan fallback");
+      // fallbackMap otomatis dipakai di updateItem & build
     }
   }
 
-  /// 🔥 DATA AMAN
   Map<String, dynamic> get kakiKakiData {
     final raw = widget.formData['kaki_kaki'];
-
     if (raw is Map<String, dynamic>) return raw;
-
-    if (raw is Map) {
-      return raw.map((key, value) => MapEntry(key.toString(), value));
-    }
-
+    if (raw is Map) return raw.map((k, v) => MapEntry(k.toString(), v));
     return {};
   }
 
-  /// 🔥 UPDATE ITEM (ANTI ERROR + ANTI 500)
   void updateItem(String itemName, dynamic value) {
     final updated = Map<String, dynamic>.from(kakiKakiData);
 
+    // ✅ Selalu pakai fallbackMap sebagai backup kalau itemIdMap belum loaded
     final itemId = itemIdMap[itemName] ?? fallbackMap[itemName];
 
     if (itemId != null) {
       Map<String, dynamic> safeValue;
 
       if (value is Map) {
-        safeValue = Map<String, dynamic>.from(value);
+        // ✅ FIX Bug 2: Eksplisit ambil setiap field dari Map
+        // Bukan Map.from() yang kadang tidak preserve tipe dengan benar
+        safeValue = {
+          "kondisi": value["kondisi"]?.toString() ?? "normal",
+          "catatan": value["catatan"]?.toString() ?? "",
+          "foto": value["foto"],
+          "foto_kerusakan": value["foto_kerusakan"],
+        };
       } else {
         safeValue = {
           "kondisi": "normal",
           "catatan": "",
+          "foto": null,
+          "foto_kerusakan": null,
         };
       }
 
+      // Simpan dengan key numeric ID → yang dikirim ke backend
       updated[itemId.toString()] = safeValue;
+      print("KAKI UPDATE: $itemName → ID $itemId → kondisi=${safeValue['kondisi']}");
+    } else {
+      print("WARNING: ID tidak ditemukan untuk item '$itemName'");
     }
 
-    /// 🔥 simpan juga untuk UI preview
+    // Simpan juga dengan nama untuk UI preview
     updated[itemName] = value;
 
     widget.formData['kaki_kaki'] = updated;
     widget.onChanged(widget.formData);
-
     setState(() {});
   }
 
@@ -139,24 +154,14 @@ class _KakiKakiPageState extends State<KakiKakiPage> {
           const SectionHeader(title: 'Pemeriksaan Kaki-Kaki'),
 
           ..._items.map((item) {
-            final itemId =
-            (itemIdMap[item] ?? fallbackMap[item])?.toString();
-
-            final currentData = kakiKakiData;
-
-            final value = (itemId != null && currentData.containsKey(itemId))
-                ? currentData[itemId]
-                : currentData[item];
+            // ✅ Selalu fallback ke fallbackMap — tidak akan pernah null untuk item yang terdaftar
+            final itemId = (itemIdMap[item] ?? fallbackMap[item])?.toString();
 
             return InspeksiItemCard(
               namaItem: item,
               fieldKey: itemId ?? item,
-
               section: "kaki_kaki",
-
-              /// 🔥 PENTING: jangan from() tiap render
               formData: kakiKakiData,
-
               onChanged: (val) => updateItem(item, val),
             );
           }),
