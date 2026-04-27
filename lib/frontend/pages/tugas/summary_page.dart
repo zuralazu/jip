@@ -1,8 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:open_file/open_file.dart';
-
 import 'package:share_plus/share_plus.dart';
 import '../../utils/colors.dart';
 import '../../services/api_service.dart';
@@ -23,7 +20,7 @@ class SummaryPage extends StatefulWidget {
 
 class _SummaryPageState extends State<SummaryPage> {
   bool isLoading = true;
-  bool isDownloading = false; // ← state untuk loading tombol PDF
+  bool isDownloading = false;
   String? errorMsg;
 
   Map<String, dynamic> header           = {};
@@ -31,7 +28,7 @@ class _SummaryPageState extends State<SummaryPage> {
   Map<String, dynamic> informasiDokumen = {};
   Map<String, dynamic> rincianFoto      = {};
 
-  // ─── safe cast ──────────────────────────────────────────────────────────────
+  // ─── safe cast ───────────────────────────────────────────────────────────────
   Map<String, dynamic> _safeMap(dynamic raw) {
     if (raw == null) return {};
     if (raw is Map<String, dynamic>) return raw;
@@ -76,7 +73,7 @@ class _SummaryPageState extends State<SummaryPage> {
     }
   }
 
-  // ─── DOWNLOAD PDF ────────────────────────────────────────────────────────────
+  // ─── REVISI 1: Download PDF — otomatis simpan + tombol buka ─────────────────
   Future<void> _downloadPdf() async {
     setState(() => isDownloading = true);
 
@@ -84,122 +81,207 @@ class _SummaryPageState extends State<SummaryPage> {
       final namaKendaraan = header['nama_kendaraan']
           ?? widget.dataTugas['nama_mobil']
           ?? 'Laporan';
+      final namaFile = 'Laporan_Inspeksi_$namaKendaraan';
 
-      final namaFile = 'Laporan_Inspeksi_${namaKendaraan.toString().replaceAll(RegExp(r'[^\w\s-]'), '_')}';
+      // ✅ Langsung download dan simpan otomatis
+      final savedPath = await ApiService.downloadLaporanPdf(widget.orderId, namaFile);
 
-      final savedPath = await ApiService.downloadLaporanPdf(
-        widget.orderId,
-        namaFile,
-      );
+      if (!mounted) return;
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('PDF berhasil disimpan!',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    Text(
-                      'Downloads/$namaFile.pdf',
-                      style: const TextStyle(fontSize: 11, color: Colors.white70),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
+      // ✅ Tampilkan snackbar sukses + tombol BUKA
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'PDF berhasil disimpan!',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                  Text(
+                    savedPath.split('/').last,
+                    style: const TextStyle(fontSize: 11, color: Colors.white70),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-            ]),
-            backgroundColor: const Color(0xFF1A9E5C),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 6),
-            shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(10))),
-            // ── TOMBOL BUKA ──────────────────────────────────────────────
-            action: SnackBarAction(
-              label: 'BUKA',
-              textColor: Colors.yellow,
-              onPressed: () async {
-                // Buka file via share sheet — user bisa pilih PDF viewer
-                await Share.shareXFiles(
-                  [XFile(savedPath, mimeType: 'application/pdf')],
-                  subject: namaFile,
-                );
-              },
             ),
+          ]),
+          backgroundColor: const Color(0xFF1A9E5C),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 6),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
           ),
-        );
-      }
+          // ✅ Tombol BUKA via share sheet
+          action: SnackBarAction(
+            label: 'BUKA',
+            textColor: Colors.yellow,
+            onPressed: () async {
+              await Share.shareXFiles(
+                [XFile(savedPath, mimeType: 'application/pdf')],
+                subject: namaFile,
+              );
+            },
+          ),
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(children: [
-              const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              Expanded(child: Text('$e',
-                  style: const TextStyle(fontSize: 12))),
-            ]),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(10))),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(children: [
+            const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text('$e', style: const TextStyle(fontSize: 12))),
+          ]),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
           ),
-        );
-      }
+        ),
+      );
     } finally {
       if (mounted) setState(() => isDownloading = false);
     }
   }
 
-  // ─── helpers (tidak berubah) ─────────────────────────────────────────────────
+  // ─── helpers ─────────────────────────────────────────────────────────────────
   Color _kondisiColor(String? k) {
     switch ((k ?? '').toLowerCase()) {
-      case 'normal': return const Color(0xFF1A9E5C);
-      case 'minus':  return const Color(0xFFE67E22);
-      case 'rusak':  return Colors.red;
-      default:       return AppColors.textGrey;
+      case 'normal':    return const Color(0xFF1A9E5C);
+      case 'minus':     return const Color(0xFFE67E22);
+      case 'rusak':     return Colors.red;
+      case 'tidak ada': return AppColors.textGrey;
+      default:          return AppColors.textGrey;
     }
   }
 
   String _kondisiLabel(String? k) {
     switch ((k ?? '').toLowerCase()) {
-      case 'normal': return 'Normal';
-      case 'minus':  return 'Minus';
-      case 'rusak':  return 'Rusak';
-      default:       return k ?? '-';
+      case 'normal':    return 'Normal';
+      case 'minus':     return 'Minus';
+      case 'rusak':     return 'Rusak';
+      case 'tidak ada': return 'Tidak Ada';
+      default:          return k ?? '-';
     }
   }
 
-  Widget _photoPreview(String? url,
-      {double width = double.infinity, double height = 180}) {
+  // ✅ REVISI 2: Widget foto dengan loading indicator
+  Widget _photoPreview(
+      String? url, {
+        double width = double.infinity,
+        double height = 180,
+      }) {
     if (url == null || url.isEmpty) return _emptyPhotoBox(width, height);
+
     final isNetwork = url.startsWith('http');
     final isLocal   = url.startsWith('/');
-    Widget img;
-    if (isNetwork) {
-      img = Image.network(url,
+
+    if (!isNetwork && !isLocal) return _emptyPhotoBox(width, height);
+
+    return GestureDetector(
+      onTap: () => _viewFull(url, isNetwork: isNetwork),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: isNetwork
+            ? Image.network(
+          url,
           width: width == double.infinity ? null : width,
           height: height,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _emptyPhotoBox(width, height));
-    } else if (isLocal) {
-      img = Image.file(File(url),
+          // ✅ REVISI 2: loading placeholder saat gambar belum muncul
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return _loadingPhotoBox(width, height, loadingProgress);
+          },
+          errorBuilder: (_, __, ___) => _emptyPhotoBox(width, height),
+        )
+            : Image.file(
+          File(url),
           width: width == double.infinity ? null : width,
           height: height,
-          fit: BoxFit.cover);
-    } else {
-      return _emptyPhotoBox(width, height);
-    }
-    return GestureDetector(
-      onTap: () => _viewFull(url, isNetwork: isNetwork),
-      child: ClipRRect(borderRadius: BorderRadius.circular(10), child: img),
+          fit: BoxFit.cover,
+          // ✅ REVISI 2: loading placeholder untuk file lokal
+          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+            if (wasSynchronouslyLoaded || frame != null) return child;
+            return _shimmerBox(width, height);
+          },
+          errorBuilder: (_, __, ___) => _emptyPhotoBox(width, height),
+        ),
+      ),
+    );
+  }
+
+  // ✅ REVISI 2: Loading box dengan progress indicator (untuk network)
+  Widget _loadingPhotoBox(double width, double height, ImageChunkEvent progress) {
+    final percent = progress.expectedTotalBytes != null
+        ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+        : null;
+
+    return Container(
+      width: width == double.infinity ? null : width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F0F0),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                value: percent,
+                strokeWidth: 2.5,
+                color: AppColors.primary,
+              ),
+            ),
+            if (percent != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                '${(percent * 100).toInt()}%',
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textGrey,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ✅ REVISI 2: Shimmer-like loading box untuk file lokal
+  Widget _shimmerBox(double width, double height) {
+    return Container(
+      width: width == double.infinity ? null : width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEEEEE),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
     );
   }
 
@@ -211,8 +293,11 @@ class _SummaryPageState extends State<SummaryPage> {
       borderRadius: BorderRadius.circular(10),
     ),
     child: const Center(
-      child: Icon(Icons.image_not_supported_outlined,
-          color: Color(0xFFBBBBBB), size: 28),
+      child: Icon(
+        Icons.image_not_supported_outlined,
+        color: Color(0xFFBBBBBB),
+        size: 28,
+      ),
     ),
   );
 
@@ -234,8 +319,7 @@ class _SummaryPageState extends State<SummaryPage> {
               onTap: () => Navigator.pop(context),
               child: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                    color: Colors.black54, shape: BoxShape.circle),
+                decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
                 child: const Icon(Icons.close, color: Colors.white, size: 20),
               ),
             ),
@@ -249,8 +333,7 @@ class _SummaryPageState extends State<SummaryPage> {
     padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
     child: Row(children: [
       Container(
-        width: 34,
-        height: 34,
+        width: 34, height: 34,
         decoration: BoxDecoration(
           color: AppColors.primary.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
@@ -259,10 +342,7 @@ class _SummaryPageState extends State<SummaryPage> {
       ),
       const SizedBox(width: 10),
       Text(title,
-          style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textDark)),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textDark)),
     ]),
   );
 
@@ -272,20 +352,13 @@ class _SummaryPageState extends State<SummaryPage> {
       SizedBox(
         width: 160,
         child: Text(label,
-            style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textGrey,
-                fontWeight: FontWeight.w500)),
+            style: const TextStyle(fontSize: 12, color: AppColors.textGrey, fontWeight: FontWeight.w500)),
       ),
-      const Text(': ',
-          style: TextStyle(color: AppColors.textGrey, fontSize: 12)),
+      const Text(': ', style: TextStyle(color: AppColors.textGrey, fontSize: 12)),
       Expanded(
         child: Text(
           (value == null || value.isEmpty || value == '-') ? '-' : value,
-          style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textDark),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textDark),
         ),
       ),
     ]),
@@ -297,12 +370,7 @@ class _SummaryPageState extends State<SummaryPage> {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(14),
-      boxShadow: [
-        BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2))
-      ],
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
   );
@@ -316,9 +384,10 @@ class _SummaryPageState extends State<SummaryPage> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Text(_kondisiLabel(kondisi),
-          style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+      child: Text(
+        _kondisiLabel(kondisi),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+      ),
     );
   }
 
@@ -331,11 +400,9 @@ class _SummaryPageState extends State<SummaryPage> {
       border: Border.all(color: const Color(0xFFEEEEEE)),
     ),
     child: Row(children: [
-      const Icon(Icons.info_outline_rounded,
-          size: 16, color: AppColors.textGrey),
+      const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.textGrey),
       const SizedBox(width: 8),
-      Text(msg,
-          style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
+      Text(msg, style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
     ]),
   );
 
@@ -358,29 +425,20 @@ class _SummaryPageState extends State<SummaryPage> {
         ),
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(namaMobil,
-              style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white)),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
           const Text('Ringkasan Inspeksi',
               style: TextStyle(fontSize: 11, color: Colors.white70)),
         ]),
-        // ── TOMBOL PDF DI SINI ────────────────────────────────────────────────
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: isDownloading
                 ? const SizedBox(
-              width: 36,
-              height: 36,
+              width: 36, height: 36,
               child: Center(
                 child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2.5,
-                  ),
+                  width: 20, height: 20,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                 ),
               ),
             )
@@ -390,25 +448,19 @@ class _SummaryPageState extends State<SummaryPage> {
                 onTap: _downloadPdf,
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                        color: Colors.white.withOpacity(0.4)),
+                    border: Border.all(color: Colors.white.withOpacity(0.4)),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.picture_as_pdf_rounded,
-                          color: Colors.white, size: 16),
+                      Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 16),
                       SizedBox(width: 5),
                       Text('PDF',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700)),
+                          style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                     ],
                   ),
                 ),
@@ -425,7 +477,6 @@ class _SummaryPageState extends State<SummaryPage> {
     );
   }
 
-  // ─── sisa widget sama persis seperti kode aslinya ────────────────────────────
   Widget _buildError() => Center(
     child: Padding(
       padding: const EdgeInsets.all(32),
@@ -438,16 +489,11 @@ class _SummaryPageState extends State<SummaryPage> {
         const SizedBox(height: 16),
         ElevatedButton(
           onPressed: () {
-            setState(() {
-              isLoading = true;
-              errorMsg  = null;
-            });
+            setState(() { isLoading = true; errorMsg = null; });
             _loadDetail();
           },
-          style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary, elevation: 0),
-          child: const Text('Coba Lagi',
-              style: TextStyle(color: Colors.white)),
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, elevation: 0),
+          child: const Text('Coba Lagi', style: TextStyle(color: Colors.white)),
         ),
       ]),
     ),
@@ -480,8 +526,7 @@ class _SummaryPageState extends State<SummaryPage> {
       ]),
       if (rincianFoto.isNotEmpty) ...[
         _sectionHeader('Rincian Inspeksi', Icons.camera_alt_rounded),
-        ...rincianFoto.entries
-            .map((e) => _buildKategoriSection(e.key, _safeList(e.value))),
+        ...rincianFoto.entries.map((e) => _buildKategoriSection(e.key, _safeList(e.value))),
       ] else ...[
         _sectionHeader('Rincian Inspeksi', Icons.camera_alt_rounded),
         Padding(
@@ -493,16 +538,12 @@ class _SummaryPageState extends State<SummaryPage> {
   );
 
   Widget _buildHeaderCard() {
-    final namaKendaraan = header['nama_kendaraan']
-        ?? widget.dataTugas['nama_mobil']
-        ?? '-';
-    final spesifikasi = header['spesifikasi']      ?? '-';
-    final inspektor   = header['inspektor']        ?? '-';
-    final tanggal     = header['tanggal_inspeksi']
-        ?? widget.dataTugas['tanggal_waktu']
-        ?? '-';
-    final status    = widget.dataTugas['status_inspeksi'] ?? 'selesai';
-    final pelanggan = widget.dataTugas['nama_pelanggan']  ?? '-';
+    final namaKendaraan = header['nama_kendaraan'] ?? widget.dataTugas['nama_mobil'] ?? '-';
+    final spesifikasi   = header['spesifikasi']      ?? '-';
+    final inspektor     = header['inspektor']        ?? '-';
+    final tanggal       = header['tanggal_inspeksi'] ?? widget.dataTugas['tanggal_waktu'] ?? '-';
+    final status        = widget.dataTugas['status_inspeksi'] ?? 'selesai';
+    final pelanggan     = widget.dataTugas['nama_pelanggan']  ?? '-';
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -515,37 +556,24 @@ class _SummaryPageState extends State<SummaryPage> {
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-              color: AppColors.primary.withOpacity(0.28),
-              blurRadius: 14,
-              offset: const Offset(0, 4))
+          BoxShadow(color: AppColors.primary.withOpacity(0.28), blurRadius: 14, offset: const Offset(0, 4))
         ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(
             child: Text(namaKendaraan,
-                style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white)),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
           ),
           Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-                color: Colors.green.shade400,
-                borderRadius: BorderRadius.circular(20)),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(color: Colors.green.shade400, borderRadius: BorderRadius.circular(20)),
             child: Text(status,
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white)),
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
           ),
         ]),
         const SizedBox(height: 4),
-        Text(spesifikasi,
-            style: const TextStyle(fontSize: 12, color: Colors.white60)),
+        Text(spesifikasi, style: const TextStyle(fontSize: 12, color: Colors.white60)),
         const SizedBox(height: 14),
         const Divider(color: Colors.white24, height: 1),
         const SizedBox(height: 14),
@@ -558,20 +586,15 @@ class _SummaryPageState extends State<SummaryPage> {
     );
   }
 
-  Widget _whiteRow(IconData icon, String label, String value) =>
-      Row(children: [
-        Icon(icon, color: Colors.white54, size: 14),
-        const SizedBox(width: 8),
-        Text('$label  ',
-            style: const TextStyle(color: Colors.white54, fontSize: 11)),
-        Expanded(
-          child: Text(value,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
-        ),
-      ]);
+  Widget _whiteRow(IconData icon, String label, String value) => Row(children: [
+    Icon(icon, color: Colors.white54, size: 14),
+    const SizedBox(width: 8),
+    Text('$label  ', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+    Expanded(
+      child: Text(value,
+          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+    ),
+  ]);
 
   Widget _buildRingkasanCard() {
     final total       = (ringkasan['total_titik_inspeksi'] ?? 0) as num;
@@ -584,19 +607,11 @@ class _SummaryPageState extends State<SummaryPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2))
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('Ringkasan Inspeksi',
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textDark)),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textDark)),
         const SizedBox(height: 14),
         Row(children: [
           _statBox('Total Titik', total.toString(), AppColors.primary),
@@ -613,25 +628,19 @@ class _SummaryPageState extends State<SummaryPage> {
               value: (normal / total).clamp(0.0, 1.0),
               minHeight: 8,
               backgroundColor: Colors.red.shade100,
-              valueColor:
-              const AlwaysStoppedAnimation(Color(0xFF1A9E5C)),
+              valueColor: const AlwaysStoppedAnimation(Color(0xFF1A9E5C)),
             ),
           ),
           const SizedBox(height: 6),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(
-                '${((normal / total) * 100).toStringAsFixed(0)}% kondisi normal',
-                style: const TextStyle(
-                    fontSize: 11, color: AppColors.textGrey)),
+            Text('${((normal / total) * 100).toStringAsFixed(0)}% kondisi normal',
+                style: const TextStyle(fontSize: 11, color: AppColors.textGrey)),
             Text(
               '$tidakNormal masalah ditemukan',
               style: TextStyle(
                 fontSize: 11,
-                color:
-                tidakNormal > 0 ? Colors.red : AppColors.textGrey,
-                fontWeight: tidakNormal > 0
-                    ? FontWeight.w600
-                    : FontWeight.w400,
+                color: tidakNormal > 0 ? Colors.red : AppColors.textGrey,
+                fontWeight: tidakNormal > 0 ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ]),
@@ -644,20 +653,15 @@ class _SummaryPageState extends State<SummaryPage> {
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(10)),
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Column(children: [
         Text(value,
-            style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: color)),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color)),
         const SizedBox(height: 2),
         Text(label,
-            style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textGrey,
-                fontWeight: FontWeight.w500)),
+            style: const TextStyle(fontSize: 11, color: AppColors.textGrey, fontWeight: FontWeight.w500)),
       ]),
     ),
   );
@@ -669,34 +673,25 @@ class _SummaryPageState extends State<SummaryPage> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
         child: Row(children: [
           Container(
-            width: 28,
-            height: 28,
+            width: 28, height: 28,
             decoration: BoxDecoration(
               color: AppColors.primary.withOpacity(0.08),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(_iconForKategori(kategori),
-                color: AppColors.primary, size: 15),
+            child: Icon(_iconForKategori(kategori), color: AppColors.primary, size: 15),
           ),
           const SizedBox(width: 8),
           Text(kategori,
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textDark)),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textDark)),
           const SizedBox(width: 8),
           Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
               color: AppColors.primary.withOpacity(0.08),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text('${items.length} item',
-                style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600)),
+                style: const TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w600)),
           ),
         ]),
       ),
@@ -717,8 +712,17 @@ class _SummaryPageState extends State<SummaryPage> {
   Widget _buildItemCard(Map<String, dynamic> item) {
     final namaItem     = item['nama_item']?.toString()      ?? '-';
     final kondisi      = item['status_kondisi']?.toString() ?? 'normal';
-    final foto         = item['foto']?.toString()           ?? '';
     final catatan      = item['catatan']?.toString()        ?? '';
+
+    // ✅ REVISI 3: baca foto utama sebagai list
+    // Backend bisa kirim sebagai array (foto_utama) atau string tunggal (foto)
+    final List<String> fotoUtamaList = _parseFotoList(item['foto_utama']) ;
+    // Fallback ke foto tunggal kalau foto_utama kosong
+    final String? fotoSingle = item['foto']?.toString();
+    if (fotoUtamaList.isEmpty && fotoSingle != null && fotoSingle.isNotEmpty) {
+      fotoUtamaList.add(fotoSingle);
+    }
+
     final fotoTambahan = _safeList(item['foto_tambahan']);
 
     return Container(
@@ -726,54 +730,75 @@ class _SummaryPageState extends State<SummaryPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2))
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+        // Header nama + badge kondisi
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
           child: Row(children: [
             Expanded(
               child: Text(namaItem,
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textDark)),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textDark)),
             ),
             const SizedBox(width: 8),
             _kondisiBadge(kondisi),
           ]),
         ),
-        if (foto.isNotEmpty)
+
+        // ✅ REVISI 3: tampilkan semua foto utama (multi)
+        if (fotoUtamaList.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-            child: _photoPreview(foto, height: 160),
-          ),
-        if (fotoTambahan.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Foto Kerusakan',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textGrey,
-                          fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (fotoUtamaList.length > 1)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(
+                      'Foto Kondisi (${fotoUtamaList.length})',
+                      style: const TextStyle(fontSize: 11, color: AppColors.textGrey, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                if (fotoUtamaList.length == 1)
+                // Satu foto: tampil full width
+                  _photoPreview(fotoUtamaList.first, height: 160)
+                else
+                // Multi foto: grid wrap
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: fotoTambahan
-                        .map((f) => _photoPreview(f?.toString(),
-                        width: 80, height: 80))
+                    children: fotoUtamaList
+                        .map((url) => _photoPreview(url, width: 100, height: 100))
                         .toList(),
                   ),
-                ]),
+              ],
+            ),
           ),
+
+        // Foto kerusakan (multi, sudah ada sebelumnya)
+        if (fotoTambahan.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                'Foto Kerusakan (${fotoTambahan.length})',
+                style: const TextStyle(fontSize: 11, color: AppColors.textGrey, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: fotoTambahan
+                    .map((f) => _photoPreview(f?.toString(), width: 80, height: 80))
+                    .toList(),
+              ),
+            ]),
+          ),
+
+        // Catatan
         if (catatan.isNotEmpty && catatan != 'null')
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
@@ -785,23 +810,32 @@ class _SummaryPageState extends State<SummaryPage> {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: const Color(0xFFFFE082)),
               ),
-              child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.notes_rounded,
-                        size: 13, color: Color(0xFFE67E22)),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(catatan,
-                          style: const TextStyle(
-                              fontSize: 12, color: Color(0xFF7D5A00))),
-                    ),
-                  ]),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Icon(Icons.notes_rounded, size: 13, color: Color(0xFFE67E22)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(catatan,
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF7D5A00))),
+                ),
+              ]),
             ),
           )
         else
           const SizedBox(height: 4),
       ]),
     );
+  }
+
+  // ✅ Helper: parse foto list dari berbagai format (array URL atau string tunggal)
+  List<String> _parseFotoList(dynamic raw) {
+    if (raw == null) return [];
+    if (raw is List) {
+      return raw
+          .map((e) => e?.toString() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+    if (raw is String && raw.isNotEmpty) return [raw];
+    return [];
   }
 }

@@ -1,31 +1,37 @@
 import 'package:flutter/material.dart';
 import '../utils/colors.dart';
-import 'foto_upload_box.dart';
 import '../utils/image_utils.dart';
-
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
 class InspeksiItemCard extends StatefulWidget {
   final String namaItem;
-
   final Map<String, dynamic>? formData;
   final String? fieldKey;
   final Function(dynamic)? onChanged;
   final String section;
 
-  const InspeksiItemCard({super.key, required this.namaItem,this.formData, this.fieldKey, this.onChanged, required this.section,});
+  const InspeksiItemCard({
+    super.key,
+    required this.namaItem,
+    this.formData,
+    this.fieldKey,
+    this.onChanged,
+    required this.section,
+  });
 
   @override
   State<InspeksiItemCard> createState() => _InspeksiItemCardState();
 }
 
 class _InspeksiItemCardState extends State<InspeksiItemCard> {
-  File? fotoUtama;
+  // ✅ REVISI 3: foto utama sekarang List (multi foto)
+  List<File> fotoUtama = [];
 
   TextEditingController catatanController = TextEditingController();
 
-  String kondisi = 'Normal';
+  // ✅ FIX Bug 2: pakai status_kondisi, bukan kondisi
+  String statusKondisi = 'Normal';
   bool showKerusakan = false;
 
   List<File> fotoKerusakan = [];
@@ -34,77 +40,77 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
   final List<String> kondisiOptions = ['Normal', 'Rusak', 'Perlu Perbaikan'];
 
   Color get _kondisiColor {
+<<<<<<< HEAD
     switch (kondisi) {
       case 'Normal':   return const Color(0xFF1A9E5C);
       case 'Rusak':    return Colors.red;
       case 'Perlu Perbaikan': return AppColors.yellow;
       default:         return AppColors.textGrey;
+=======
+    switch (statusKondisi) {
+      case 'Normal':    return const Color(0xFF1A9E5C);
+      case 'Minus':     return const Color(0xFFE67E22);
+      case 'Rusak':     return Colors.red;
+      case 'Tidak Ada': return AppColors.textGrey;
+      default:          return AppColors.textGrey;
+>>>>>>> main
     }
   }
 
   @override
   void initState() {
     super.initState();
-
     final data = itemData;
 
-    kondisi = data["kondisi"] ?? kondisi;
+    // ✅ Baca status_kondisi dari data (fallback ke kondisi lama kalau ada)
+    statusKondisi = data["status_kondisi"] ?? data["kondisi"] ?? 'Normal';
     showKerusakan = data["showKerusakan"] ?? false;
     catatanController.text = data["catatan"] ?? "";
 
-    fotoUtama = getImage();
+    fotoUtama = _getFotoUtamaList();
     fotoKerusakan = getKerusakanImages();
   }
 
-  void updateFormData() {
-    final data = {
-      "kondisi": kondisi,
-      "showKerusakan": showKerusakan,
-      "catatan": catatanController.text,
-    };
+  // ✅ REVISI 3: baca foto utama sebagai list
+  List<File> _getFotoUtamaList() {
+    final data = itemData;
 
-    if (widget.formData != null && widget.fieldKey != null) {
-      final safeMap = Map<String, dynamic>.from(widget.formData!);
-
-      safeMap[widget.fieldKey!] = Map<String, dynamic>.from(data);
-
-      widget.formData!.clear();
-      widget.formData!.addAll(safeMap);
+    // Coba baca sebagai list dulu (format baru)
+    final fotoList = data["foto_utama"];
+    if (fotoList is List && fotoList.isNotEmpty) {
+      return fotoList
+          .map((e) => e?.toString() ?? '')
+          .where((p) => p.isNotEmpty)
+          .map((p) => File(p))
+          .toList();
     }
 
-    // ✅ KIRIM KE PARENT
-    if (widget.onChanged != null) {
-      widget.onChanged!(data);
+    // Fallback: baca format lama (single foto string)
+    final foto = data["foto"];
+    if (foto != null && foto.toString().isNotEmpty) {
+      return [File(foto.toString())];
     }
+
+    return [];
   }
 
   void saveAll() {
     final data = {
-      "kondisi": kondisi,
+      // ✅ FIX Bug 2: kirim status_kondisi ke backend
+      "status_kondisi": statusKondisi,
       "showKerusakan": showKerusakan,
       "catatan": catatanController.text,
-      "foto": fotoUtama?.path,
+      // ✅ REVISI 3: foto utama sebagai list path
+      "foto_utama": fotoUtama.map((e) => e.path).toList(),
+      // Backward compat: isi juga "foto" dengan foto pertama
+      "foto": fotoUtama.isNotEmpty ? fotoUtama.first.path : null,
       "foto_kerusakan": fotoKerusakan.map((e) => e.path).toList(),
     };
-
-    // 🔥 FIX: tulis ke formData[section][fieldKey], bukan formData[fieldKey]
-    if (widget.formData != null && widget.fieldKey != null) {
-      final safeMap = Map<String, dynamic>.from(widget.formData!);
-
-      // Pastikan section map sudah ada
-      safeMap[widget.section] ??= <String, dynamic>{};
-      final sectionMap = Map<String, dynamic>.from(safeMap[widget.section]);
-
-      sectionMap[widget.fieldKey!] = data;
-      safeMap[widget.section] = sectionMap;
-
-      widget.formData!.clear();
-      widget.formData!.addAll(safeMap);
-    }
 
     widget.onChanged?.call(data);
   }
 
+  @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -112,7 +118,11 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
@@ -127,7 +137,11 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                 Expanded(
                   child: Text(
                     widget.namaItem,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textDark,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -144,11 +158,19 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          kondisi,
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kondisiColor),
+                          statusKondisi,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _kondisiColor,
+                          ),
                         ),
                         const SizedBox(width: 4),
-                        Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: _kondisiColor),
+                        Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 14,
+                          color: _kondisiColor,
+                        ),
                       ],
                     ),
                   ),
@@ -157,18 +179,105 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
             ),
           ),
 
-          // ── UPLOAD FOTO ──
+          // ── REVISI 3: MULTI FOTO UTAMA ──
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-            child: FotoUploadBox(
-              label: 'Upload Foto',
-              imageFile: fotoUtama,
-              onImagePicked: (file) {
-                setState(() {
-                  fotoUtama = file;
-                });
-                saveAll();
-              },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Foto Kondisi',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textGrey,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    // Tampilkan semua foto utama yang sudah ada
+                    ...fotoUtama.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final file = entry.value;
+                      return Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.file(
+                              file,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() => fotoUtama.removeAt(idx));
+                                saveAll();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  size: 12,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
+
+                    // Tombol tambah foto utama
+                    GestureDetector(
+                      onTap: () => _pickFotoUtama(context),
+                      child: Container(
+                        width: 600,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F8F8),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppColors.primary.withOpacity(0.4),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_a_photo_rounded,
+                              color: AppColors.primary.withOpacity(0.7),
+                              size: 22,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              fotoUtama.isEmpty ? 'Tambah\nFoto' : 'Tambah\nLagi',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.primary.withOpacity(0.7),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
 
@@ -186,7 +295,10 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     child: Text(
                       'Ada Kerusakan lainnya?',
-                      style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.9)),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
                     ),
                   ),
                 ),
@@ -194,28 +306,6 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                   onTap: () {
                     setState(() => showKerusakan = !showKerusakan);
                     saveAll();
-
-                    // 🔥 SIMPAN
-                    if (widget.formData != null && widget.fieldKey != null) {
-                      final existing = Map<String, dynamic>.from(
-                        widget.formData![widget.fieldKey!] ?? {},
-                      );
-
-                      existing["kondisi"] = kondisi;
-                      existing["showKerusakan"] = showKerusakan;
-
-                      final safeMap = Map<String, dynamic>.from(widget.formData!);
-
-                      safeMap[widget.section] ??= {};
-                      final sectionMap = Map<String, dynamic>.from(safeMap[widget.section]);
-
-                      sectionMap[widget.fieldKey!] = existing;
-
-                      safeMap[widget.section] = sectionMap;
-
-                      widget.formData!.clear();
-                      widget.formData!.addAll(safeMap);
-                    }
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -228,7 +318,11 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                     ),
                     child: Text(
                       showKerusakan ? 'Tutup' : 'Tambahkan',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ),
@@ -236,60 +330,100 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
             ),
           ),
 
-          // ── FIELD KERUSAKAN ──
+          // ── FIELD KERUSAKAN (multi foto) ──
           if (showKerusakan)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text(
+                    'Foto Kerusakan',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textGrey,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      ...fotoKerusakan.map((file) => Stack(
-                        children: [
-                          Container(
-                            width: 70,
-                            height: 70,
-                            decoration: BoxDecoration(
+                      ...fotoKerusakan.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final file = entry.value;
+                        return Stack(
+                          children: [
+                            ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              image: DecorationImage(
-                                image: FileImage(file),
+                              child: Image.file(
+                                file,
+                                width: 70,
+                                height: 70,
                                 fit: BoxFit.cover,
                               ),
                             ),
-                          ),
-
-                          Positioned(
-                            top: 0,
-                            right: 0,
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  fotoKerusakan.remove(file);
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() => fotoKerusakan.removeAt(idx));
+                                  saveAll();
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 12,
+                                    color: Colors.white,
+                                  ),
                                 ),
-                                child: const Icon(Icons.close, size: 12, color: Colors.white),
                               ),
                             ),
-                          ),
-                        ],
-                      )),
+                          ],
+                        );
+                      }),
 
-                      FotoUploadBox(
-                        label: 'Upload Foto',
-                        onImagePicked: (file) {
-                          setState(() {
-                            fotoKerusakan.add(file); // ✅ BETUL
-                          });
-                          saveAll();
-                        },
+                      // Tombol tambah foto kerusakan
+                      GestureDetector(
+                        onTap: () => _pickFotoKerusakan(context),
+                        child: Container(
+                          width: 600,
+                          height: 70,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8F8F8),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.red.withOpacity(0.4),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.add_a_photo_rounded,
+                                color: Colors.red.withOpacity(0.6),
+                                size: 18,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Tambah',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.red.withOpacity(0.7),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -297,7 +431,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
               ),
             ),
 
-          // ── CATATAN OPSIONAL ──
+          // ── CATATAN ──
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
             child: _buildInputField(hint: 'Catatan (Opsional)'),
@@ -309,11 +443,9 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
 
   Widget _buildInputField({required String hint, int maxLines = 1}) {
     return TextField(
-      controller: catatanController, // 🔥
+      controller: catatanController,
       maxLines: maxLines,
-      onChanged: (value) {
-        saveAll();
-      },
+      onChanged: (_) => saveAll(),
       style: const TextStyle(fontSize: 13),
       decoration: InputDecoration(
         hintText: hint,
@@ -337,6 +469,135 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
     );
   }
 
+  // ── PICKER FOTO UTAMA ────────────────────────────────────────────────────────
+  void _pickFotoUtama(BuildContext context) {
+    _showImagePickerSheet(
+      context,
+      onCamera: () async {
+        final XFile? image = await _picker.pickImage(
+          source: ImageSource.camera,
+          imageQuality: 80,
+        );
+        if (image != null) {
+          final compressed = await ImageUtils.compressImage(
+            File(image.path),
+            quality: 70,
+            maxWidth: 1280,
+            maxHeight: 1280,
+          );
+          setState(() => fotoUtama.add(compressed));
+          saveAll();
+        }
+      },
+      onGallery: () async {
+        // ✅ pickMultiImage untuk galeri agar bisa pilih banyak sekaligus
+        final List<XFile> images = await _picker.pickMultiImage(imageQuality: 80);
+        if (images.isNotEmpty) {
+          for (final img in images) {
+            final compressed = await ImageUtils.compressImage(
+              File(img.path),
+              quality: 70,
+              maxWidth: 1280,
+              maxHeight: 1280,
+            );
+            fotoUtama.add(compressed);
+          }
+          setState(() {});
+          saveAll();
+        }
+      },
+    );
+  }
+
+  // ── PICKER FOTO KERUSAKAN ────────────────────────────────────────────────────
+  void _pickFotoKerusakan(BuildContext context) {
+    _showImagePickerSheet(
+      context,
+      onCamera: () async {
+        final XFile? image = await _picker.pickImage(
+          source: ImageSource.camera,
+          imageQuality: 80,
+        );
+        if (image != null) {
+          final compressed = await ImageUtils.compressImage(
+            File(image.path),
+            quality: 70,
+            maxWidth: 1280,
+            maxHeight: 1280,
+          );
+          setState(() => fotoKerusakan.add(compressed));
+          saveAll();
+        }
+      },
+      onGallery: () async {
+        final List<XFile> images = await _picker.pickMultiImage(imageQuality: 80);
+        if (images.isNotEmpty) {
+          for (final img in images) {
+            final compressed = await ImageUtils.compressImage(
+              File(img.path),
+              quality: 70,
+              maxWidth: 1280,
+              maxHeight: 1280,
+            );
+            fotoKerusakan.add(compressed);
+          }
+          setState(() {});
+          saveAll();
+        }
+      },
+    );
+  }
+
+  // ── BOTTOM SHEET PICKER (reusable) ───────────────────────────────────────────
+  void _showImagePickerSheet(
+      BuildContext context, {
+        required Future<void> Function() onCamera,
+        required Future<void> Function() onGallery,
+      }) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+              child: Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded),
+              title: const Text('Ambil dari Kamera'),
+              onTap: () {
+                Navigator.pop(context);
+                onCamera();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Pilih dari Galeri (bisa banyak)'),
+              onTap: () {
+                Navigator.pop(context);
+                onGallery();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── KONDISI PICKER ───────────────────────────────────────────────────────────
   void _showKondisiPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -351,50 +612,50 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
           children: [
             Center(
               child: Container(
-                width: 36, height: 4,
-                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Pilih Kondisi', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+            const Text(
+              'Pilih Kondisi',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textDark,
+              ),
+            ),
             const SizedBox(height: 12),
             ...kondisiOptions.map((opt) => ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(
-                kondisi == opt ? Icons.radio_button_checked : Icons.radio_button_off,
-                color: kondisi == opt ? AppColors.primary : AppColors.textGrey,
+                statusKondisi == opt
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_off,
+                color: statusKondisi == opt
+                    ? AppColors.primary
+                    : AppColors.textGrey,
                 size: 20,
               ),
               title: Text(
                 opt,
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight: kondisi == opt ? FontWeight.w600 : FontWeight.w400,
-                  color: kondisi == opt ? AppColors.primary : AppColors.textDark,
+                  fontWeight: statusKondisi == opt
+                      ? FontWeight.w600
+                      : FontWeight.w400,
+                  color: statusKondisi == opt
+                      ? AppColors.primary
+                      : AppColors.textDark,
                 ),
               ),
               onTap: () {
-                setState(() => kondisi = opt);
-
-                // 🔥 FIX: sama, tulis ke section dulu
-                if (widget.formData != null && widget.fieldKey != null) {
-                  final safeMap = Map<String, dynamic>.from(widget.formData!);
-
-                  safeMap[widget.section] ??= <String, dynamic>{};
-                  final sectionMap = Map<String, dynamic>.from(safeMap[widget.section]);
-
-                  sectionMap[widget.fieldKey!] = {
-                    ...Map<String, dynamic>.from(sectionMap[widget.fieldKey!] ?? {}),
-                    "kondisi": kondisi,
-                    "showKerusakan": showKerusakan,
-                  };
-
-                  safeMap[widget.section] = sectionMap;
-                  widget.formData!.clear();
-                  widget.formData!.addAll(safeMap);
-                }
-
-                saveAll(); // panggil saveAll() setelah update kondisi
+                setState(() => statusKondisi = opt);
+                saveAll();
                 Navigator.pop(context);
               },
             )),
@@ -404,62 +665,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
     );
   }
 
-  void _pickImage() {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Ambil dari Kamera'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickFromCamera();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo),
-              title: const Text('Pilih dari Galeri'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickFromGallery();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _pickFromCamera() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.camera,
-    );
-
-    if (image != null) {
-      final compressed = await ImageUtils.compressImage(File(image.path));
-      setState(() {
-        fotoKerusakan.add(compressed); // ← pakai file hasil compress
-      });
-      saveAll();
-    }
-  }
-
-  Future<void> _pickFromGallery() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.gallery,
-    );
-
-    if (image != null) {
-      final compressed = await ImageUtils.compressImage(File(image.path));
-      setState(() {
-        fotoKerusakan.add(compressed); // ← pakai file hasil compress
-      });
-      saveAll();
-    }
-  }
-
+  // ── DATA HELPERS ─────────────────────────────────────────────────────────────
   Map<String, dynamic> get itemData {
     if (widget.formData != null && widget.fieldKey != null) {
       final raw = widget.formData?[widget.fieldKey];
@@ -471,15 +677,13 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
     return {};
   }
 
-  File? getImage() {
-    final path = itemData["foto"];
-    if (path == null || path.toString().isEmpty) return null;
-    return File(path);
-  }
-
   List<File> getKerusakanImages() {
     final list = itemData["foto_kerusakan"];
-    if (list == null) return [];
-    return List<String>.from(list).map((e) => File(e)).toList();
+    if (list == null || list is! List) return [];
+    return list
+        .map((e) => e?.toString() ?? '')
+        .where((p) => p.isNotEmpty)
+        .map((p) => File(p))
+        .toList();
   }
 }

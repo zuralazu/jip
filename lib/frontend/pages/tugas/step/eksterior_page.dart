@@ -20,6 +20,7 @@ class EksteriorPage extends StatefulWidget {
 class _EksteriorPageState extends State<EksteriorPage> {
 
   static const List<String> _items = [
+    'Foto Depan Kendaraan',
     'Kap Mesin',
     'Bumper Depan',
     'Lampu Depan',
@@ -131,7 +132,7 @@ class _EksteriorPageState extends State<EksteriorPage> {
 
       if (value is Map) {
         safeValue = {
-          "kondisi": value["status_kondisi"]?.toString() ?? "normal",
+          "kondisi": value["kondisi"]?.toString() ?? "normal",
           "catatan": value["catatan"]?.toString() ?? "",
           "foto": value["foto"],
           "foto_kerusakan": value["foto_kerusakan"],

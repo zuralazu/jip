@@ -115,14 +115,18 @@ class _KakiKakiPageState extends State<KakiKakiPage> {
         // ✅ FIX Bug 2: Eksplisit ambil setiap field dari Map
         // Bukan Map.from() yang kadang tidak preserve tipe dengan benar
         safeValue = {
+<<<<<<< HEAD
           "kondisi": value["status_kondisi"]?.toString() ?? "normal",
+=======
+          "status_kondisi": value["status_kondisi"]?.toString() ?? "normal",
+>>>>>>> main
           "catatan": value["catatan"]?.toString() ?? "",
           "foto": value["foto"],
           "foto_kerusakan": value["foto_kerusakan"],
         };
       } else {
         safeValue = {
-          "kondisi": "normal",
+          "status_kondisi": "normal",
           "catatan": "",
           "foto": null,
           "foto_kerusakan": null,
@@ -131,7 +135,7 @@ class _KakiKakiPageState extends State<KakiKakiPage> {
 
       // Simpan dengan key numeric ID → yang dikirim ke backend
       updated[itemId.toString()] = safeValue;
-      print("KAKI UPDATE: $itemName → ID $itemId → kondisi=${safeValue['kondisi']}");
+      print("KAKI UPDATE: $itemName → ID $itemId → status_kondisi=${safeValue['status_kondisi']}");
     } else {
       print("WARNING: ID tidak ditemukan untuk item '$itemName'");
     }

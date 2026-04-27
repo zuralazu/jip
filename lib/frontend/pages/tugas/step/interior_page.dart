@@ -126,14 +126,18 @@ class _InteriorPageState extends State<InteriorPage> {
       if (value is Map) {
         // ✅ FIX: Eksplisit ambil tiap field, bukan Map.from() langsung
         safeValue = {
+<<<<<<< HEAD
           "kondisi": value["status_kondisi"]?.toString() ?? "normal",
+=======
+          "status_kondisi": value["status_kondisi"]?.toString() ?? "normal",
+>>>>>>> main
           "catatan": value["catatan"]?.toString() ?? "",
           "foto": value["foto"],
           "foto_kerusakan": value["foto_kerusakan"],
         };
       } else {
         safeValue = {
-          "kondisi": "normal",
+          "status_kondisi": "normal",
           "catatan": "",
           "foto": null,
           "foto_kerusakan": null,
@@ -141,7 +145,7 @@ class _InteriorPageState extends State<InteriorPage> {
       }
 
       updated[itemId.toString()] = safeValue;
-      print("INTERIOR UPDATE: $itemName → ID $itemId → kondisi=${safeValue['kondisi']}");
+      print("INTERIOR UPDATE: $itemName → ID $itemId → status_kondisi=${safeValue['status_kondisi']}");
     }
 
     updated[itemName] = value;

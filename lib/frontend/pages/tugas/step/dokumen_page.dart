@@ -35,7 +35,18 @@ class _DokumenPageState extends State<DokumenPage> {
 
   TextEditingController _getController(String key) {
     if (!_controllers.containsKey(key)) {
-      _controllers[key] = TextEditingController(text: widget.formData[key] ?? "");
+      String raw = widget.formData[key] ?? "";
+
+      // Khusus field PKB, format saat init
+      if (key == 'pkb' && raw.isNotEmpty) {
+        final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+        if (digits.isNotEmpty) {
+          final number = int.parse(digits);
+          raw = 'Rp ${_formatRupiah(number)}';
+        }
+      }
+
+      _controllers[key] = TextEditingController(text: raw);
     }
     return _controllers[key]!;
   }
@@ -216,8 +227,18 @@ class _DokumenPageState extends State<DokumenPage> {
     widget.formData.forEach((key, value) {
       if (_controllers.containsKey(key)) {
         final controller = _controllers[key]!;
-        if (controller.text != (value ?? "")) {
-          controller.text = value ?? "";
+        String displayValue = value ?? "";
+
+        // Khusus PKB, format ulang jika value berubah dari luar
+        if (key == 'pkb' && displayValue.isNotEmpty) {
+          final digits = displayValue.replaceAll(RegExp(r'[^0-9]'), '');
+          if (digits.isNotEmpty) {
+            displayValue = 'Rp ${_formatRupiah(int.parse(digits))}';
+          }
+        }
+
+        if (controller.text != displayValue) {
+          controller.text = displayValue;
         }
       }
     });
@@ -295,7 +316,7 @@ class _DokumenPageState extends State<DokumenPage> {
             extraFields: [
               _buildDateField('Pajak 1 Tahun', "pajak_1_tahun"),
               _buildDateField('Pajak 5 Tahun', "pajak_5_tahun"),
-              _buildTextField('PKB', "pkb"),
+              _buildPKBField('PKB', "pkb"),
               _buildTextField('Nomor Rangka', "nomor_rangka"),
               _buildTextField('Nomor Mesin', "nomor_mesin"),
             ],
@@ -470,6 +491,54 @@ class _DokumenPageState extends State<DokumenPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildPKBField(String label, String key) {
+    final controller = _getController(key);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        onChanged: (val) {
+          // Hapus semua karakter non-digit
+          String digits = val.replaceAll(RegExp(r'[^0-9]'), '');
+
+          // Format dengan titik ribuan
+          String formatted = '';
+          if (digits.isNotEmpty) {
+            final number = int.parse(digits);
+            formatted = 'Rp ${_formatRupiah(number)}';
+          }
+
+          // Update controller tanpa trigger onChanged lagi
+          controller.value = TextEditingValue(
+            text: formatted,
+            selection: TextSelection.collapsed(offset: formatted.length),
+          );
+
+          // Simpan hanya angkanya ke formData
+          updateForm(key, digits);
+        },
+        style: const TextStyle(fontSize: 13),
+        decoration: _inputDecoration(label, fieldKey: key),
+      ),
+    );
+  }
+
+  String _formatRupiah(int number) {
+    String result = number.toString();
+    String formatted = '';
+    int count = 0;
+
+    for (int i = result.length - 1; i >= 0; i--) {
+      if (count > 0 && count % 3 == 0) formatted = '.$formatted';
+      formatted = result[i] + formatted;
+      count++;
+    }
+
+    return formatted;
   }
 
   Widget _buildOptionSelector(String label, String key) {
