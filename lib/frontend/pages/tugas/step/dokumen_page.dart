@@ -332,13 +332,13 @@ class _DokumenPageState extends State<DokumenPage> {
             photoErrorText: _errorText('foto_bpkb_1'),
             uploadWidget: Column(
               children: [
-                _buildFotoBox("foto_bpkb_1", "Foto BPKB 1"),
+                _buildFotoBox("foto_bpkb_1", "Foto BPKB HALAMAN 1"),
                 const SizedBox(height: 8),
-                _buildFotoBox("foto_bpkb_2", "Foto BPKB 2"),
+                _buildFotoBox("foto_bpkb_2", "Foto BPKB HALAMAN 2"),
                 const SizedBox(height: 8),
-                _buildFotoBox("foto_bpkb_3", "Foto BPKB 3"),
+                _buildFotoBox("foto_bpkb_3", "Foto BPKB HALAMAN 3"),
                 const SizedBox(height: 8),
-                _buildFotoBox("foto_bpkb_4", "Foto BPKB 4"),
+                _buildFotoBox("foto_bpkb_4", "Foto BPKB HALAMAN 4"),
                 if (isScanningOcr)
                   Container(
                     color: Colors.black.withOpacity(0.3),

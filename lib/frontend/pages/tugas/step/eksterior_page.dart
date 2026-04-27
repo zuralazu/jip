@@ -132,14 +132,14 @@ class _EksteriorPageState extends State<EksteriorPage> {
 
       if (value is Map) {
         safeValue = {
-          "status_kondisi": value["status_kondisi"]?.toString() ?? "normal",
+          "kondisi": value["kondisi"]?.toString() ?? "normal",
           "catatan": value["catatan"]?.toString() ?? "",
           "foto": value["foto"],
           "foto_kerusakan": value["foto_kerusakan"],
         };
       } else {
         safeValue = {
-          "status_kondisi": "normal",
+          "kondisi": "normal",
           "catatan": "",
           "foto": null,
           "foto_kerusakan": null,
@@ -147,7 +147,7 @@ class _EksteriorPageState extends State<EksteriorPage> {
       }
 
       updated[itemId.toString()] = safeValue;
-      print("EKSTERIOR UPDATE: $itemName → ID $itemId → status_kondisi=${safeValue['status_kondisi']}");
+      print("EKSTERIOR UPDATE: $itemName → ID $itemId → kondisi=${safeValue['kondisi']}");
     }
 
     updated[itemName] = value;
