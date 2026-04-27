@@ -204,10 +204,16 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
       totalItems++;
 
       if (value is Map) {
-        final kondisi = value['kondisi']?.toString() ?? '';
-        final foto = value['foto']?.toString() ?? '';
+        // ✅ FIX: cek status_kondisi dulu, fallback ke kondisi
+        final kondisi = value['status_kondisi']?.toString() ?? value['kondisi']?.toString() ?? '';
+
+        // ✅ FIX: foto sekarang bisa berupa list (foto_utama) atau string (foto)
+        final fotoUtamaList = value['foto_utama'];
+        final fotoSingle = value['foto']?.toString() ?? '';
+        final hasFoto = (fotoUtamaList is List && fotoUtamaList.isNotEmpty) || fotoSingle.isNotEmpty;
+
         if (kondisi.isEmpty) missingKondisi++;
-        if (foto.isEmpty) missingFoto++;
+        if (!hasFoto) missingFoto++;
       } else {
         missingKondisi++;
         missingFoto++;

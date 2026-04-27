@@ -114,7 +114,7 @@ class _MesinPageState extends State<MesinPage> {
   }
 
   void updateItem(String itemName, dynamic value) {
-    final updated = Map<String, dynamic>.from(mesinData);
+    final updated = Map<String, dynamic>.from(mesinData); // ganti sesuai section
 
     final itemId = itemIdMap[itemName] ?? fallbackMap[itemName];
 
@@ -122,28 +122,30 @@ class _MesinPageState extends State<MesinPage> {
       Map<String, dynamic> safeValue;
 
       if (value is Map) {
+        // ✅ FIX: salin SEMUA field dari value termasuk foto_utama
         safeValue = {
-          "status_kondisi": value["status_kondisi"]?.toString() ?? "normal",
+          "status_kondisi": value["status_kondisi"]?.toString() ?? "Normal",
           "catatan": value["catatan"]?.toString() ?? "",
-          "foto": value["foto"],
-          "foto_kerusakan": value["foto_kerusakan"],
+          "foto_utama": value["foto_utama"] ?? [],        // ← list multi foto
+          "foto": value["foto"],                          // ← backward compat
+          "foto_kerusakan": value["foto_kerusakan"] ?? [],
         };
       } else {
         safeValue = {
-          "status_kondisi": "normal",
+          "status_kondisi": "Normal",
           "catatan": "",
+          "foto_utama": [],
           "foto": null,
-          "foto_kerusakan": null,
+          "foto_kerusakan": [],
         };
       }
 
       updated[itemId.toString()] = safeValue;
-      print("MESIN UPDATE: $itemName → ID $itemId → status_kondisi=${safeValue['status_kondisi']}");
     }
 
-    updated[itemName] = value;
+    updated[itemName] = value; // untuk UI preview
 
-    widget.formData['mesin'] = updated;
+    widget.formData['mesin'] = updated; // ganti sesuai section: 'eksterior', 'mesin', 'kaki_kaki'
     widget.onChanged(widget.formData);
     setState(() {});
   }
