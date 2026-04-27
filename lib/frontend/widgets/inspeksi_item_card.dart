@@ -40,20 +40,15 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
   final List<String> kondisiOptions = ['Normal', 'Rusak', 'Perlu Perbaikan'];
 
   Color get _kondisiColor {
-<<<<<<< HEAD
-    switch (kondisi) {
-      case 'Normal':   return const Color(0xFF1A9E5C);
-      case 'Rusak':    return Colors.red;
-      case 'Perlu Perbaikan': return AppColors.yellow;
-      default:         return AppColors.textGrey;
-=======
     switch (statusKondisi) {
-      case 'Normal':    return const Color(0xFF1A9E5C);
-      case 'Minus':     return const Color(0xFFE67E22);
-      case 'Rusak':     return Colors.red;
-      case 'Tidak Ada': return AppColors.textGrey;
-      default:          return AppColors.textGrey;
->>>>>>> main
+      case 'Normal':
+        return const Color(0xFF1A9E5C);
+      case 'Rusak':
+        return Colors.red;
+      case 'Perlu Perbaikan':
+        return AppColors.yellow;
+      default:
+        return AppColors.textGrey;
     }
   }
 
