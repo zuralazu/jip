@@ -550,6 +550,7 @@ class ApiService {
     print("INTERIOR KEYS: ${interior.keys.toList()}");
 
 
+
     for (var entry in interior.entries) {
       final itemId = entry.key;
 
@@ -569,19 +570,46 @@ class ApiService {
       request.fields["catatan"] = itemData["catatan"] ?? "";
       request.fields["is_draft"] = isFinal ? "0" : "1";
 
-      if (itemData["foto"] != null && itemData["foto"].toString().isNotEmpty){
-        request.files.add(await http.MultipartFile.fromPath(
-          "foto_utama",
-          itemData["foto"],
-        ));
+      final fotoUtamaList = itemData["foto_utama"];
+      if (fotoUtamaList is List && fotoUtamaList.isNotEmpty) {
+        for (final path in fotoUtamaList) {
+          if (path != null && path.toString().isNotEmpty) {
+            final file = File(path.toString());
+            if (await file.exists()) {
+              request.files.add(await http.MultipartFile.fromPath(
+                "foto_utama[]",
+                file.path,
+              ));
+            }
+          }
+        }
+      } else {
+        // Fallback: format lama (single foto string)
+        final foto = itemData["foto"];
+        if (foto != null && foto.toString().isNotEmpty) {
+          final file = File(foto.toString());
+          if (await file.exists()) {
+            request.files.add(await http.MultipartFile.fromPath(
+              "foto_utama",
+              file.path,
+            ));
+          }
+        }
       }
 
-      if (itemData["foto_kerusakan"] != null) {
-        for (var path in itemData["foto_kerusakan"]) {
-          request.files.add(await http.MultipartFile.fromPath(
-            "foto_tambahan[]",
-            path,
-          ));
+// Foto kerusakan (tidak berubah, tapi tambah null check)
+      final fotoKerusakan = itemData["foto_kerusakan"];
+      if (fotoKerusakan is List) {
+        for (var path in fotoKerusakan) {
+          if (path != null && path.toString().isNotEmpty) {
+            final file = File(path.toString());
+            if (await file.exists()) {
+              request.files.add(await http.MultipartFile.fromPath(
+                "foto_tambahan[]",
+                file.path,
+              ));
+            }
+          }
         }
       }
 
@@ -589,6 +617,7 @@ class ApiService {
 
       print("INTERIOR ITEM ID: $itemId");
       print("STATUS: ${res.statusCode}");
+      print("BODY RESPONSE: ${res.body}");
 
       if (res.statusCode != 200) {
         throw Exception("Gagal simpan interior item $itemId");
@@ -623,19 +652,46 @@ class ApiService {
       request.fields["catatan"] = itemData["catatan"] ?? "";
       request.fields["is_draft"] = isFinal ? "0" : "1";
 
-      if (itemData["foto"] != null && itemData["foto"].toString().isNotEmpty) {
-        request.files.add(await http.MultipartFile.fromPath(
-          "foto_utama",
-          itemData["foto"],
-        ));
+      final fotoUtamaList = itemData["foto_utama"];
+      if (fotoUtamaList is List && fotoUtamaList.isNotEmpty) {
+        for (final path in fotoUtamaList) {
+          if (path != null && path.toString().isNotEmpty) {
+            final file = File(path.toString());
+            if (await file.exists()) {
+              request.files.add(await http.MultipartFile.fromPath(
+                "foto_utama[]",
+                file.path,
+              ));
+            }
+          }
+        }
+      } else {
+        // Fallback: format lama (single foto string)
+        final foto = itemData["foto"];
+        if (foto != null && foto.toString().isNotEmpty) {
+          final file = File(foto.toString());
+          if (await file.exists()) {
+            request.files.add(await http.MultipartFile.fromPath(
+              "foto_utama",
+              file.path,
+            ));
+          }
+        }
       }
 
-      if (itemData["foto_kerusakan"] != null) {
-        for (var path in itemData["foto_kerusakan"]) {
-          request.files.add(await http.MultipartFile.fromPath(
-            "foto_tambahan[]",
-            path,
-          ));
+// Foto kerusakan (tidak berubah, tapi tambah null check)
+      final fotoKerusakan = itemData["foto_kerusakan"];
+      if (fotoKerusakan is List) {
+        for (var path in fotoKerusakan) {
+          if (path != null && path.toString().isNotEmpty) {
+            final file = File(path.toString());
+            if (await file.exists()) {
+              request.files.add(await http.MultipartFile.fromPath(
+                "foto_tambahan[]",
+                file.path,
+              ));
+            }
+          }
         }
       }
 
@@ -677,19 +733,46 @@ class ApiService {
       request.fields["catatan"] = itemData["catatan"] ?? "";
       request.fields["is_draft"] = isFinal ? "0" : "1";
 
-      if (itemData["foto"] != null && itemData["foto"].toString().isNotEmpty) {
-        request.files.add(await http.MultipartFile.fromPath(
-          "foto_utama",
-          itemData["foto"],
-        ));
+      final fotoUtamaList = itemData["foto_utama"];
+      if (fotoUtamaList is List && fotoUtamaList.isNotEmpty) {
+        for (final path in fotoUtamaList) {
+          if (path != null && path.toString().isNotEmpty) {
+            final file = File(path.toString());
+            if (await file.exists()) {
+              request.files.add(await http.MultipartFile.fromPath(
+                "foto_utama[]",
+                file.path,
+              ));
+            }
+          }
+        }
+      } else {
+        // Fallback: format lama (single foto string)
+        final foto = itemData["foto"];
+        if (foto != null && foto.toString().isNotEmpty) {
+          final file = File(foto.toString());
+          if (await file.exists()) {
+            request.files.add(await http.MultipartFile.fromPath(
+              "foto_utama",
+              file.path,
+            ));
+          }
+        }
       }
 
-      if (itemData["foto_kerusakan"] != null) {
-        for (var path in itemData["foto_kerusakan"]) {
-          request.files.add(await http.MultipartFile.fromPath(
-            "foto_tambahan[]",
-            path,
-          ));
+// Foto kerusakan (tidak berubah, tapi tambah null check)
+      final fotoKerusakan = itemData["foto_kerusakan"];
+      if (fotoKerusakan is List) {
+        for (var path in fotoKerusakan) {
+          if (path != null && path.toString().isNotEmpty) {
+            final file = File(path.toString());
+            if (await file.exists()) {
+              request.files.add(await http.MultipartFile.fromPath(
+                "foto_tambahan[]",
+                file.path,
+              ));
+            }
+          }
         }
       }
 
@@ -730,19 +813,46 @@ class ApiService {
       request.fields["catatan"] = itemData["catatan"] ?? "";
       request.fields["is_draft"] = isFinal ? "0" : "1";
 
-      if (itemData["foto"] != null && itemData["foto"].toString().isNotEmpty){
-        request.files.add(await http.MultipartFile.fromPath(
-          "foto_utama",
-          itemData["foto"],
-        ));
+      final fotoUtamaList = itemData["foto_utama"];
+      if (fotoUtamaList is List && fotoUtamaList.isNotEmpty) {
+        for (final path in fotoUtamaList) {
+          if (path != null && path.toString().isNotEmpty) {
+            final file = File(path.toString());
+            if (await file.exists()) {
+              request.files.add(await http.MultipartFile.fromPath(
+                "foto_utama[]",
+                file.path,
+              ));
+            }
+          }
+        }
+      } else {
+        // Fallback: format lama (single foto string)
+        final foto = itemData["foto"];
+        if (foto != null && foto.toString().isNotEmpty) {
+          final file = File(foto.toString());
+          if (await file.exists()) {
+            request.files.add(await http.MultipartFile.fromPath(
+              "foto_utama",
+              file.path,
+            ));
+          }
+        }
       }
 
-      if (itemData["foto_kerusakan"] != null) {
-        for (var path in itemData["foto_kerusakan"]) {
-          request.files.add(await http.MultipartFile.fromPath(
-            "foto_tambahan[]",
-            path,
-          ));
+// Foto kerusakan (tidak berubah, tapi tambah null check)
+      final fotoKerusakan = itemData["foto_kerusakan"];
+      if (fotoKerusakan is List) {
+        for (var path in fotoKerusakan) {
+          if (path != null && path.toString().isNotEmpty) {
+            final file = File(path.toString());
+            if (await file.exists()) {
+              request.files.add(await http.MultipartFile.fromPath(
+                "foto_tambahan[]",
+                file.path,
+              ));
+            }
+          }
         }
       }
 

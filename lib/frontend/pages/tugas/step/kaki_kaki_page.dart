@@ -103,43 +103,38 @@ class _KakiKakiPageState extends State<KakiKakiPage> {
   }
 
   void updateItem(String itemName, dynamic value) {
-    final updated = Map<String, dynamic>.from(kakiKakiData);
+    final updated = Map<String, dynamic>.from(kakiKakiData); // ganti sesuai section
 
-    // ✅ Selalu pakai fallbackMap sebagai backup kalau itemIdMap belum loaded
     final itemId = itemIdMap[itemName] ?? fallbackMap[itemName];
 
     if (itemId != null) {
       Map<String, dynamic> safeValue;
 
       if (value is Map) {
-        // ✅ FIX Bug 2: Eksplisit ambil setiap field dari Map
-        // Bukan Map.from() yang kadang tidak preserve tipe dengan benar
+        // ✅ FIX: salin SEMUA field dari value termasuk foto_utama
         safeValue = {
-          "status_kondisi": value["status_kondisi"]?.toString() ?? "normal",
+          "status_kondisi": value["status_kondisi"]?.toString() ?? "Normal",
           "catatan": value["catatan"]?.toString() ?? "",
-          "foto": value["foto"],
-          "foto_kerusakan": value["foto_kerusakan"],
+          "foto_utama": value["foto_utama"] ?? [],        // ← list multi foto
+          "foto": value["foto"],                          // ← backward compat
+          "foto_kerusakan": value["foto_kerusakan"] ?? [],
         };
       } else {
         safeValue = {
-          "status_kondisi": "normal",
+          "status_kondisi": "Normal",
           "catatan": "",
+          "foto_utama": [],
           "foto": null,
-          "foto_kerusakan": null,
+          "foto_kerusakan": [],
         };
       }
 
-      // Simpan dengan key numeric ID → yang dikirim ke backend
       updated[itemId.toString()] = safeValue;
-      print("KAKI UPDATE: $itemName → ID $itemId → status_kondisi=${safeValue['status_kondisi']}");
-    } else {
-      print("WARNING: ID tidak ditemukan untuk item '$itemName'");
     }
 
-    // Simpan juga dengan nama untuk UI preview
-    updated[itemName] = value;
+    updated[itemName] = value; // untuk UI preview
 
-    widget.formData['kaki_kaki'] = updated;
+    widget.formData['kaki_kaki'] = updated; // ganti sesuai section: 'eksterior', 'mesin', 'kaki_kaki'
     widget.onChanged(widget.formData);
     setState(() {});
   }
