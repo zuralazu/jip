@@ -565,7 +565,7 @@ class ApiService {
 
       request.headers["Authorization"] = "Bearer $token";
 
-      request.fields["kondisi"] = itemData["kondisi"] ?? "normal";
+      request.fields["status_kondisi"] = itemData["status_kondisi"] ?? "normal";
       request.fields["catatan"] = itemData["catatan"] ?? "";
       request.fields["is_draft"] = isFinal ? "0" : "1";
 
@@ -619,7 +619,7 @@ class ApiService {
 
       request.headers["Authorization"] = "Bearer $token";
 
-      request.fields["kondisi"] = itemData["kondisi"] ?? "normal";
+      request.fields["status_kondisi"] = itemData["status_kondisi"] ?? "normal";
       request.fields["catatan"] = itemData["catatan"] ?? "";
       request.fields["is_draft"] = isFinal ? "0" : "1";
 
@@ -673,7 +673,7 @@ class ApiService {
 
       request.headers["Authorization"] = "Bearer $token";
 
-      request.fields["kondisi"] = itemData["kondisi"] ?? "normal";
+      request.fields["status_kondisi"] = itemData["status_kondisi"] ?? "normal";
       request.fields["catatan"] = itemData["catatan"] ?? "";
       request.fields["is_draft"] = isFinal ? "0" : "1";
 
@@ -726,7 +726,7 @@ class ApiService {
 
       request.headers["Authorization"] = "Bearer $token";
 
-      request.fields["kondisi"] = itemData["kondisi"] ?? "normal";
+      request.fields["status_kondisi"] = itemData["status_kondisi"] ?? "normal";
       request.fields["catatan"] = itemData["catatan"] ?? "";
       request.fields["is_draft"] = isFinal ? "0" : "1";
 
@@ -959,41 +959,39 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  static Future<String> downloadLaporanPdf(int komisiId, String namaFile) async {
+  static Future<String> downloadLaporanPdf(int orderId, String namaFile) async {
     final token = await AuthService.getToken();
 
     final response = await http.get(
-      Uri.parse('$baseUrl/laporan/$komisiId/pdf'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/pdf',
-      },
+      Uri.parse('$baseUrl/laporan/$orderId/pdf'),
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/pdf'},
     );
 
-    print('=== DOWNLOAD PDF ===');
-    print('STATUS: ${response.statusCode}');
+    print('DOWNLOAD PDF STATUS: ${response.statusCode}');
 
     if (response.statusCode != 200) {
       String msg = 'Gagal download PDF (${response.statusCode})';
-      try { msg = jsonDecode(response.body)['message'] ?? msg; } catch (_) {}
+      try {
+        msg = jsonDecode(response.body)['message'] ?? msg;
+      } catch (_) {}
       throw Exception(msg);
     }
 
-    // Pakai getExternalStorageDirectory — tidak butuh permission, pasti bisa diakses
+    // ✅ Simpan ke direktori yang bisa diakses user
     Directory saveDir;
-
     if (Platform.isAndroid) {
+      // /storage/emulated/0/Android/data/<package>/files/ — tidak butuh permission
       final extDir = await getExternalStorageDirectory();
-      // Path: /storage/emulated/0/Android/data/com.yourapp/files/
       saveDir = extDir ?? await getApplicationDocumentsDirectory();
     } else {
       saveDir = await getApplicationDocumentsDirectory();
     }
 
-    final file = File('${saveDir.path}/$namaFile.pdf');
+    final fileName = '${namaFile.replaceAll(RegExp(r'[^\w\s\-]'), '_')}.pdf';
+    final file = File('${saveDir.path}/$fileName');
     await file.writeAsBytes(response.bodyBytes);
 
-    print('PDF TERSIMPAN DI: ${file.path}');
+    print('PDF TERSIMPAN: ${file.path}');
     return file.path;
   }
 }

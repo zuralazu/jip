@@ -123,14 +123,14 @@ class _MesinPageState extends State<MesinPage> {
 
       if (value is Map) {
         safeValue = {
-          "kondisi": value["kondisi"]?.toString() ?? "normal",
+          "status_kondisi": value["status_kondisi"]?.toString() ?? "normal",
           "catatan": value["catatan"]?.toString() ?? "",
           "foto": value["foto"],
           "foto_kerusakan": value["foto_kerusakan"],
         };
       } else {
         safeValue = {
-          "kondisi": "normal",
+          "status_kondisi": "normal",
           "catatan": "",
           "foto": null,
           "foto_kerusakan": null,
@@ -138,7 +138,7 @@ class _MesinPageState extends State<MesinPage> {
       }
 
       updated[itemId.toString()] = safeValue;
-      print("MESIN UPDATE: $itemName → ID $itemId → kondisi=${safeValue['kondisi']}");
+      print("MESIN UPDATE: $itemName → ID $itemId → status_kondisi=${safeValue['status_kondisi']}");
     }
 
     updated[itemName] = value;
