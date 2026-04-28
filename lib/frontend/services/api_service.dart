@@ -566,7 +566,10 @@ class ApiService {
 
       request.headers["Authorization"] = "Bearer $token";
 
-      request.fields["status_kondisi"] = itemData["status_kondisi"] ?? "normal";
+      request.fields["status_kondisi"] = (itemData["status_kondisi"] ?? "normal")
+          .toString()
+          .toLowerCase()
+          .replaceAll(' ', '_');
       request.fields["catatan"] = itemData["catatan"] ?? "";
       request.fields["is_draft"] = isFinal ? "0" : "1";
 
@@ -648,7 +651,10 @@ class ApiService {
 
       request.headers["Authorization"] = "Bearer $token";
 
-      request.fields["status_kondisi"] = itemData["status_kondisi"] ?? "normal";
+      request.fields["status_kondisi"] = (itemData["status_kondisi"] ?? "normal")
+          .toString()
+          .toLowerCase()
+          .replaceAll(' ', '_');
       request.fields["catatan"] = itemData["catatan"] ?? "";
       request.fields["is_draft"] = isFinal ? "0" : "1";
 
@@ -729,7 +735,10 @@ class ApiService {
 
       request.headers["Authorization"] = "Bearer $token";
 
-      request.fields["status_kondisi"] = itemData["status_kondisi"] ?? "normal";
+      request.fields["status_kondisi"] = (itemData["status_kondisi"] ?? "normal")
+          .toString()
+          .toLowerCase()
+          .replaceAll(' ', '_');
       request.fields["catatan"] = itemData["catatan"] ?? "";
       request.fields["is_draft"] = isFinal ? "0" : "1";
 
@@ -809,7 +818,10 @@ class ApiService {
 
       request.headers["Authorization"] = "Bearer $token";
 
-      request.fields["status_kondisi"] = itemData["status_kondisi"] ?? "normal";
+      request.fields["status_kondisi"] = (itemData["status_kondisi"] ?? "normal")
+          .toString()
+          .toLowerCase()
+          .replaceAll(' ', '_');
       request.fields["catatan"] = itemData["catatan"] ?? "";
       request.fields["is_draft"] = isFinal ? "0" : "1";
 

@@ -125,7 +125,8 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
 
   // ─── VALIDATION ─────────────────────────────────────────────────────────────
 
-  Map<String, String> _validateStep(int step) {
+  // Tambah parameter opsional isFinal
+  Map<String, String> _validateStep(int step, {bool isFinal = false}) {
     final errors = <String, String>{};
 
     switch (step) {
@@ -165,16 +166,17 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
         break;
 
       case 2:
-        _validateInspeksiSection(errors, 'interior');
+      // ✅ Validasi ketat hanya saat submit final
+        if (isFinal) _validateInspeksiSection(errors, 'interior');
         break;
       case 3:
-        _validateInspeksiSection(errors, 'eksterior');
+        if (isFinal) _validateInspeksiSection(errors, 'eksterior');
         break;
       case 4:
-        _validateInspeksiSection(errors, 'mesin');
+        if (isFinal) _validateInspeksiSection(errors, 'mesin');
         break;
       case 5:
-        _validateInspeksiSection(errors, 'kaki_kaki');
+        if (isFinal) _validateInspeksiSection(errors, 'kaki_kaki');
         break;
     }
 
@@ -235,7 +237,8 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
   Map<int, Map<String, String>> _validateAll() {
     final result = <int, Map<String, String>>{};
     for (int i = 0; i < stepTitles.length; i++) {
-      final e = _validateStep(i);
+      // ✅ Submit final wajib semua lengkap
+      final e = _validateStep(i, isFinal: true);
       if (e.isNotEmpty) result[i] = e;
     }
     return result;
@@ -549,8 +552,8 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
                 children: List.generate(stepTitles.length, (i) {
                   final isSelected = currentStep == i;
 
-                  // ✅ FIX Bug 1: Dot merah hanya muncul kalau step sudah pernah disentuh
-                  final hasError = _touchedSteps.contains(i) && _validateStep(i).isNotEmpty;
+                  // Di dalam List.generate tab bar
+                  final hasError = _touchedSteps.contains(i) && _validateStep(i, isFinal: true).isNotEmpty;
 
                   return GestureDetector(
                     onTap: () {
