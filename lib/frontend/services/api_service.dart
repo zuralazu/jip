@@ -316,12 +316,11 @@ class ApiService {
     }
 
     if (statusCode == 401) {
-      await AuthService.logout();
+      await AuthService.logout(); // hapus token lokal
       throw Exception("UNAUTHORIZED");
     }
 
     if (statusCode == 422) {
-      // 🔥 Tampilkan field mana yang gagal validasi
       final errors = data["errors"];
       print("VALIDATION ERRORS: $errors");
       throw Exception("VALIDATION_ERROR: $errors");
