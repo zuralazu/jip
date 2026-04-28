@@ -20,7 +20,6 @@ class EksteriorPage extends StatefulWidget {
 class _EksteriorPageState extends State<EksteriorPage> {
 
   static const List<String> _items = [
-    'Foto Depan Kendaraan',
     'Kap Mesin',
     'Bumper Depan',
     'Lampu Depan',
@@ -123,7 +122,7 @@ class _EksteriorPageState extends State<EksteriorPage> {
   }
 
   void updateItem(String itemName, dynamic value) {
-    final updated = Map<String, dynamic>.from(eksteriorData); // ganti sesuai section
+    final updated = Map<String, dynamic>.from(eksteriorData);
 
     final itemId = itemIdMap[itemName] ?? fallbackMap[itemName];
 
@@ -131,30 +130,32 @@ class _EksteriorPageState extends State<EksteriorPage> {
       Map<String, dynamic> safeValue;
 
       if (value is Map) {
-        // ✅ FIX: salin SEMUA field dari value termasuk foto_utama
         safeValue = {
-          "status_kondisi": value["status_kondisi"]?.toString() ?? "Normal",
+<<<<<<< HEAD
+          "kondisi": value["status_kondisi"]?.toString() ?? "normal",
+=======
+          "status_kondisi": value["status_kondisi"]?.toString() ?? "normal",
+>>>>>>> main
           "catatan": value["catatan"]?.toString() ?? "",
-          "foto_utama": value["foto_utama"] ?? [],        // ← list multi foto
-          "foto": value["foto"],                          // ← backward compat
-          "foto_kerusakan": value["foto_kerusakan"] ?? [],
+          "foto": value["foto"],
+          "foto_kerusakan": value["foto_kerusakan"],
         };
       } else {
         safeValue = {
-          "status_kondisi": "Normal",
+          "status_kondisi": "normal",
           "catatan": "",
-          "foto_utama": [],
           "foto": null,
-          "foto_kerusakan": [],
+          "foto_kerusakan": null,
         };
       }
 
       updated[itemId.toString()] = safeValue;
+      print("EKSTERIOR UPDATE: $itemName → ID $itemId → status_kondisi=${safeValue['status_kondisi']}");
     }
 
-    updated[itemName] = value; // untuk UI preview
+    updated[itemName] = value;
 
-    widget.formData['eksterior'] = updated; // ganti sesuai section: 'eksterior', 'mesin', 'kaki_kaki'
+    widget.formData['eksterior'] = updated;
     widget.onChanged(widget.formData);
     setState(() {});
   }
