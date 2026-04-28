@@ -1096,29 +1096,18 @@ class ApiService {
       throw Exception('Gagal mengunduh PDF (status ${response.statusCode})');
     }
 
-    // 2. Bersihkan nama file
-    final cleanName = namaFile.replaceAll(RegExp(r'[^\w\s\-]'), '_');
+    // 2. Bersihkan nama file (hapus spasi juga — ini penyebab masalah "BMW X-5")
+    final cleanName = namaFile
+        .replaceAll(RegExp(r'[^\w\-]'), '_')  // ganti spasi & karakter aneh
+        .replaceAll(RegExp(r'_+'), '_');       // hindari double underscore
 
-    // 3. Tentukan path simpan
-    String filePath;
+    // 3. Simpan ke app external storage — TIDAK butuh permission di semua Android
+    final dir = await getExternalStorageDirectory();
+    final saveDir = dir ?? await getApplicationDocumentsDirectory();
 
-    if (Platform.isAndroid) {
-      // Langsung tulis ke Downloads — tidak butuh permission di Android 10+
-      // Di Android 9 ke bawah ini juga umumnya work tanpa permission eksplisit
-      final downloadsDir = Directory('/storage/emulated/0/Download');
-      if (!await downloadsDir.exists()) {
-        await downloadsDir.create(recursive: true);
-      }
-      filePath = '${downloadsDir.path}/$cleanName.pdf';
-    } else if (Platform.isIOS) {
-      final dir = await getApplicationDocumentsDirectory();
-      filePath = '${dir.path}/$cleanName.pdf';
-    } else {
-      final dir = await getDownloadsDirectory() ?? await getTemporaryDirectory();
-      filePath = '${dir.path}/$cleanName.pdf';
-    }
+    final filePath = '${saveDir.path}/$cleanName.pdf';
 
-    // 4. Tulis file ke disk
+    // 4. Tulis file
     final file = File(filePath);
     await file.writeAsBytes(response.bodyBytes);
 

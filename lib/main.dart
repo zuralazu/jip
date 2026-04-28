@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:jip/frontend/pages/profile/profile.dart';
 import 'package:jip/frontend/pages/slip-komisi/slip_komisi_page.dart';
 
@@ -13,9 +14,11 @@ import 'frontend/pages/main/main_page.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
-
+  await FlutterDownloader.initialize(debug: true);
   runApp(const MyApp());
 }
+
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

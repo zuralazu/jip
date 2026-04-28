@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../utils/colors.dart';
 import '../../services/api_service.dart';
+import 'package:open_file/open_file.dart';
 
 class SummaryPage extends StatefulWidget {
   final int orderId;
@@ -125,10 +126,7 @@ class _SummaryPageState extends State<SummaryPage> {
             label: 'BUKA',
             textColor: Colors.yellow,
             onPressed: () async {
-              await Share.shareXFiles(
-                [XFile(savedPath, mimeType: 'application/pdf')],
-                subject: namaFile,
-              );
+              await OpenFile.open(savedPath);
             },
           ),
         ),
