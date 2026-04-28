@@ -131,14 +131,11 @@ class _EksteriorPageState extends State<EksteriorPage> {
 
       if (value is Map) {
         safeValue = {
-<<<<<<< HEAD
-          "kondisi": value["status_kondisi"]?.toString() ?? "normal",
-=======
-          "status_kondisi": value["status_kondisi"]?.toString() ?? "normal",
->>>>>>> main
+          "status_kondisi": value["status_kondisi"]?.toString() ?? "Normal",
           "catatan": value["catatan"]?.toString() ?? "",
+          "foto_utama": value["foto_utama"] ?? [],  // ← TAMBAH INI
           "foto": value["foto"],
-          "foto_kerusakan": value["foto_kerusakan"],
+          "foto_kerusakan": value["foto_kerusakan"] ?? [],
         };
       } else {
         safeValue = {
