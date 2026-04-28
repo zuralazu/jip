@@ -238,7 +238,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                     GestureDetector(
                       onTap: () => _pickFotoUtama(context),
                       child: Container(
-                        width: 600,
+                        width: 80,
                         height: 80,
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8F8F8),
@@ -389,7 +389,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                       GestureDetector(
                         onTap: () => _pickFotoKerusakan(context),
                         child: Container(
-                          width: 600,
+                          width: 70,
                           height: 70,
                           decoration: BoxDecoration(
                             color: const Color(0xFFF8F8F8),
