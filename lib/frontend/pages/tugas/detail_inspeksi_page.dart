@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/base_page.dart';
 import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 import '../../utils/colors.dart';
 import 'step/informasi_mobil_page.dart';
 import 'step/dokumen_page.dart';
@@ -46,6 +47,87 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     loadExistingData();
     loadInformasi();
     loadDokumen();
+    loadInspeksiData();
+  }
+
+  Future<void> loadInspeksiData() async {
+    try {
+      // Load keempat section secara paralel
+      final results = await Future.wait([
+        ApiService.getInterior(_orderId),
+        ApiService.getEksterior(_orderId),
+        ApiService.getMesin(_orderId),
+        ApiService.getKakiKaki(_orderId),
+      ]);
+
+      final interiorRes  = results[0];
+      final eksteriorRes = results[1];
+      final mesinRes     = results[2];
+      final kakiRes      = results[3];
+
+      setState(() {
+        // ✅ Hanya isi kalau belum ada data lokal (jangan overwrite yang baru diinput)
+        if (formData['interior'] == null || (formData['interior'] as Map).isEmpty) {
+          final raw = interiorRes["data"]?["data"] ?? interiorRes["data"];
+          if (raw is List) formData['interior'] = _parseInspeksiList(raw);
+        }
+
+        if (formData['eksterior'] == null || (formData['eksterior'] as Map).isEmpty) {
+          final raw = eksteriorRes["data"]?["data"] ?? eksteriorRes["data"];
+          if (raw is List) formData['eksterior'] = _parseInspeksiList(raw);
+        }
+
+        if (formData['mesin'] == null || (formData['mesin'] as Map).isEmpty) {
+          final raw = mesinRes["data"]?["data"] ?? mesinRes["data"];
+          if (raw is List) formData['mesin'] = _parseInspeksiList(raw);
+        }
+
+        if (formData['kaki_kaki'] == null || (formData['kaki_kaki'] as Map).isEmpty) {
+          final raw = kakiRes["data"]?["data"] ?? kakiRes["data"];
+          if (raw is List) formData['kaki_kaki'] = _parseInspeksiList(raw);
+        }
+      });
+    } catch (e) {
+      print("ERROR LOAD INSPEKSI DATA: $e");
+      if (e.toString().contains('UNAUTHORIZED') && mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+      print("ERROR LOAD INSPEKSI DATA: $e");
+    }
+  }
+
+// Convert list dari backend ke Map dengan key = item_id string
+  Map<String, dynamic> _parseInspeksiList(List<dynamic> list) {
+    final result = <String, dynamic>{};
+    for (final item in list) {
+      if (item is! Map) continue;
+      final itemId = item["item_id"]?.toString();
+      if (itemId == null) continue;
+
+      // ✅ Sesuaikan key dengan yang dipakai di InspeksiItemCard
+      result[itemId] = {
+        "status_kondisi": item["status_kondisi"]?.toString() ?? "Normal",
+        "catatan": item["catatan"]?.toString() ?? "",
+        // foto dari backend berupa URL, bukan path lokal
+        "foto_utama": _parseFotoUtama(item["foto_utama"] ?? item["foto"]),
+        "foto": item["foto"]?.toString(),
+        "foto_kerusakan": _parseFotoTambahan(item["foto_tambahan"]),
+      };
+    }
+    return result;
+  }
+
+  List<String> _parseFotoUtama(dynamic raw) {
+    if (raw == null) return [];
+    if (raw is List) return raw.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+    if (raw is String && raw.isNotEmpty) return [raw];
+    return [];
+  }
+
+  List<String> _parseFotoTambahan(dynamic raw) {
+    if (raw == null) return [];
+    if (raw is List) return raw.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+    return [];
   }
 
   Map<String, dynamic> mergeSafe(
@@ -53,7 +135,12 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
       Map<String, dynamic> incoming,
       ) {
     final result = Map<String, dynamic>.from(base);
+
+    // Key section inspeksi JANGAN pernah di-overwrite dari API
+    const protectedKeys = {'interior', 'eksterior', 'mesin', 'kaki_kaki'};
+
     incoming.forEach((key, value) {
+      if (protectedKeys.contains(key)) return; // skip, jangan overwrite
       if (value != null && value.toString().isNotEmpty) {
         result[key] = value;
       }
@@ -66,8 +153,14 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
       final res = await ApiService.getDokumen(widget.orderId);
       if (res["statusCode"] == 200) {
         final apiData = Map<String, dynamic>.from(res["data"] ?? {});
+        // Ambil cache dulu sebelum merge
+        final cached = _formCache[_orderId] ?? {};
         setState(() {
           formData = mergeSafe(apiData, formData);
+          // Restore section inspeksi dari cache kalau ada
+          for (final key in ['interior', 'eksterior', 'mesin', 'kaki_kaki']) {
+            if (cached[key] != null) formData[key] = cached[key];
+          }
           isLoading = false;
         });
       }
@@ -82,8 +175,13 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
       final res = await ApiService.getInformasi(widget.orderId);
       if (res["statusCode"] == 200) {
         final data = res["data"]?["data"] ?? res["data"] ?? {};
+        final cached = _formCache[_orderId] ?? {};
         setState(() {
           formData = mergeSafe(data, formData);
+          // Restore section inspeksi dari cache kalau ada
+          for (final key in ['interior', 'eksterior', 'mesin', 'kaki_kaki']) {
+            if (cached[key] != null) formData[key] = cached[key];
+          }
         });
       }
     } catch (e) {
@@ -99,15 +197,36 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
       final cached = _formCache[_orderId] ?? {};
       setState(() {
         inspectionStatus = tugas["status_inspeksi"] ?? "draft";
-        formData = {...formData, ...cached};
+        formData = {...formData, ...cached}; // cache restore semua termasuk foto
         formData["order_id"] = _orderId;
       });
     } catch (e) {
+      print("ERROR LOAD EXISTING: $e");
       final cached = _formCache[_orderId] ?? {};
       setState(() {
         formData = {...formData, ...cached};
       });
     }
+  }
+
+  void _handleError(dynamic e) {
+    _hideLoading();
+    final msg = e.toString();
+
+    if (msg.contains('UNAUTHORIZED')) {
+      // Token habis — redirect ke login
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+      return;
+    }
+
+    if (msg.contains('SERVER_ERROR')) {
+      _showErrorPopup("Server sedang bermasalah, coba beberapa saat lagi.");
+      return;
+    }
+
+    _showErrorPopup("Gagal: $msg");
   }
 
   void _onFormChanged(Map<String, dynamic> data) {
@@ -279,6 +398,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     } catch (e) {
       _hideLoading();
       _showErrorPopup("Gagal simpan: ${e.toString()}");
+      _handleError(e);
     }
   }
 
@@ -339,6 +459,8 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
       } else {
         _showErrorPopup("Gagal submit: $msg");
       }
+
+      _handleError(e);
     }
   }
 

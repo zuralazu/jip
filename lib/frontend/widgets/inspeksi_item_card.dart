@@ -25,7 +25,7 @@ class InspeksiItemCard extends StatefulWidget {
 }
 
 class _InspeksiItemCardState extends State<InspeksiItemCard> {
-  List<File> fotoUtama = [];
+  List<dynamic> fotoUtama = [];
   TextEditingController catatanController = TextEditingController();
   String statusKondisi = 'Normal';
   bool showKerusakan = false;
@@ -83,18 +83,13 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
     });
   }
 
-  // ✅ FIX Masalah 1: didUpdateWidget dipanggil saat parent rebuild
-  // Ini yang terjadi saat pindah section lalu balik — widget di-rebuild
-  // dengan formData baru, tapi state lama (fotoUtama) tidak ikut update
   @override
   void didUpdateWidget(covariant InspeksiItemCard oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Cek apakah data untuk item ini berubah dari luar
     final newData = itemData;
     final newFotoUtama = newData["foto_utama"];
 
-    // Hitung jumlah foto dari formData terbaru
     int countFromFormData = 0;
     if (newFotoUtama is List) {
       countFromFormData = newFotoUtama
@@ -102,12 +97,10 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
           .length;
     }
 
-    // Kalau jumlah foto di formData berbeda dengan state lokal, reload
     if (countFromFormData != fotoUtama.length) {
       setState(() => _loadFromFormData());
     }
 
-    // Reload juga kalau kondisi berubah dari luar
     final newKondisi = newData["status_kondisi"]?.toString() ?? 'Normal';
     if (newKondisi != statusKondisi && newKondisi.isNotEmpty) {
       setState(() => statusKondisi = newKondisi);
@@ -131,28 +124,48 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
     return {};
   }
 
-  List<File> _getFotoUtamaList() {
+  List<dynamic> _getFotoUtamaList() {
     final data = itemData;
-
-    // Format baru: list of paths
     final fotoList = data["foto_utama"];
-    if (fotoList is List && fotoList.isNotEmpty) {
-      return fotoList
-          .map((e) => e?.toString() ?? '')
-          .where((p) => p.isNotEmpty)
-          .map((p) => File(p))
-          .where((f) => f.existsSync())
-          .toList();
+    final result = <dynamic>[];
+
+    if (fotoList is List) {
+      for (final e in fotoList) {
+        final path = e?.toString() ?? '';
+        if (path.isEmpty) continue;
+        if (path.startsWith('http')) {
+          result.add(path); // URL dari server
+        } else {
+          final f = File(path);
+          if (f.existsSync()) result.add(f); // path lokal
+        }
+      }
+    }
+
+    // Cek juga foto_utama_urls (URL yang sudah disimpan sebelumnya)
+    final savedUrls = data["foto_utama_urls"];
+    if (result.isEmpty && savedUrls is List) {
+      for (final url in savedUrls) {
+        if (url != null && url.toString().isNotEmpty) {
+          result.add(url.toString());
+        }
+      }
     }
 
     // Fallback format lama: single string
-    final foto = data["foto"];
-    if (foto != null && foto.toString().isNotEmpty) {
-      final f = File(foto.toString());
-      if (f.existsSync()) return [f];
+    if (result.isEmpty) {
+      final foto = data["foto"]?.toString() ?? '';
+      if (foto.isNotEmpty) {
+        if (foto.startsWith('http')) {
+          result.add(foto);
+        } else {
+          final f = File(foto);
+          if (f.existsSync()) result.add(f);
+        }
+      }
     }
 
-    return [];
+    return result;
   }
 
   List<File> _getKerusakanImages() {
@@ -171,9 +184,18 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
       "status_kondisi": statusKondisi,
       "showKerusakan": showKerusakan,
       "catatan": catatanController.text,
-      "foto_utama": fotoUtama.map((e) => e.path).toList(),
-      "foto": fotoUtama.isNotEmpty ? fotoUtama.first.path : null,
+      "foto_utama": fotoUtama
+          .whereType<File>()
+          .map((e) => e.path)
+          .toList(),
+      "foto": fotoUtama.whereType<File>().isNotEmpty
+          ? fotoUtama.whereType<File>().first.path
+          : null,
       "foto_kerusakan": fotoKerusakan.map((e) => e.path).toList(),
+      // Simpan URL server supaya tetap bisa ditampilkan
+      "foto_utama_urls": fotoUtama
+          .whereType<String>()
+          .toList(),
     };
     widget.onChanged?.call(data);
   }
@@ -268,19 +290,17 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
+                    // Ganti bagian ...fotoUtama.asMap().entries.map((entry) { ... }):
                     ...fotoUtama.asMap().entries.map((entry) {
                       final idx = entry.key;
-                      final file = entry.value;
+                      final item = entry.value;
                       return Stack(
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(10),
-                            child: Image.file(
-                              file,
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
-                            ),
+                            child: item is File
+                                ? Image.file(item, width: 80, height: 80, fit: BoxFit.cover)
+                                : Image.network(item.toString(), width: 80, height: 80, fit: BoxFit.cover),
                           ),
                           Positioned(
                             top: 0,
@@ -292,10 +312,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(3),
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
+                                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                                 child: const Icon(Icons.close, size: 12, color: Colors.white),
                               ),
                             ),
@@ -421,8 +438,8 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                               borderRadius: BorderRadius.circular(8),
                               child: Image.file(
                                 file,
-                                width: 600,
-                                height: 70,
+                                width: 90,
+                                height: 90,
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -451,7 +468,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                       GestureDetector(
                         onTap: () => _pickFotoKerusakan(context),
                         child: Container(
-                          width: 70,
+                          width: 600,
                           height: 70,
                           decoration: BoxDecoration(
                             color: const Color(0xFFF8F8F8),
