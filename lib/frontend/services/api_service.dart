@@ -2,9 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-// import 'package:open_file/open_file.dart';
-// import 'package:share_plus/share_plus.dart';
-
+import 'package:permission_handler/permission_handler.dart';
 
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
@@ -1069,50 +1067,61 @@ class ApiService {
   static Future<Map<String, dynamic>> getDetailTugas(int orderId) async {
     final token = await AuthService.getToken();
 
+    final url = Uri.parse('$baseUrl/tugas/detail/$orderId');
+
+    print("=== DETAIL TUGAS ===");
+    print("URL: $url");
+
     final response = await http.get(
-      Uri.parse('$baseUrl/tugas/detail/$orderId'),  // ← sesuaikan endpoint-nya
+      url,
       headers: {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
       },
     );
 
+    print("STATUS: ${response.statusCode}");
+    print("BODY: ${response.body}");
+
     return _handleResponse(response);
   }
 
   static Future<String> downloadLaporanPdf(int orderId, String namaFile) async {
     final token = await AuthService.getToken();
+    final url = '$baseUrl/laporan/$orderId/pdf?token=$token';
 
-    final response = await http.get(
-      Uri.parse('$baseUrl/laporan/$orderId/pdf'),
-      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/pdf'},
-    );
-
-    print('DOWNLOAD PDF STATUS: ${response.statusCode}');
-
+    // 1. Download PDF via HTTP
+    final response = await http.get(Uri.parse(url));
     if (response.statusCode != 200) {
-      String msg = 'Gagal download PDF (${response.statusCode})';
-      try {
-        msg = jsonDecode(response.body)['message'] ?? msg;
-      } catch (_) {}
-      throw Exception(msg);
+      throw Exception('Gagal mengunduh PDF (status ${response.statusCode})');
     }
 
-    // ✅ Simpan ke direktori yang bisa diakses user
-    Directory saveDir;
+    // 2. Bersihkan nama file
+    final cleanName = namaFile.replaceAll(RegExp(r'[^\w\s\-]'), '_');
+
+    // 3. Tentukan path simpan
+    String filePath;
+
     if (Platform.isAndroid) {
-      // /storage/emulated/0/Android/data/<package>/files/ — tidak butuh permission
-      final extDir = await getExternalStorageDirectory();
-      saveDir = extDir ?? await getApplicationDocumentsDirectory();
+      // Langsung tulis ke Downloads — tidak butuh permission di Android 10+
+      // Di Android 9 ke bawah ini juga umumnya work tanpa permission eksplisit
+      final downloadsDir = Directory('/storage/emulated/0/Download');
+      if (!await downloadsDir.exists()) {
+        await downloadsDir.create(recursive: true);
+      }
+      filePath = '${downloadsDir.path}/$cleanName.pdf';
+    } else if (Platform.isIOS) {
+      final dir = await getApplicationDocumentsDirectory();
+      filePath = '${dir.path}/$cleanName.pdf';
     } else {
-      saveDir = await getApplicationDocumentsDirectory();
+      final dir = await getDownloadsDirectory() ?? await getTemporaryDirectory();
+      filePath = '${dir.path}/$cleanName.pdf';
     }
 
-    final fileName = '${namaFile.replaceAll(RegExp(r'[^\w\s\-]'), '_')}.pdf';
-    final file = File('${saveDir.path}/$fileName');
+    // 4. Tulis file ke disk
+    final file = File(filePath);
     await file.writeAsBytes(response.bodyBytes);
 
-    print('PDF TERSIMPAN: ${file.path}');
-    return file.path;
+    return filePath;
   }
 }

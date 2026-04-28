@@ -34,7 +34,7 @@ class TugasCard extends StatelessWidget {
 
     print('=== ITEM DATA ===');
     print(item.keys.toList());
-    print('order_id: ${item['order_id']}');
+    print('id: ${item['id']}');
     print('komisi_id: ${item['komisi_id']}');
 
     return Container(
@@ -226,7 +226,7 @@ class TugasCard extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (_) => DetailInspeksiPage(
                         dataTugas: item,
-                        orderId: item['order_id'],
+                        orderId: item['id'],
                       ),
                     ),
                   ).then((_) => onNavigateBack?.call());
@@ -273,7 +273,7 @@ class TugasCard extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (_) => SummaryPage(
-                      orderId: item['order_id'],
+                      orderId: item['id'],
                       dataTugas: item,
                     ),
                   ),
