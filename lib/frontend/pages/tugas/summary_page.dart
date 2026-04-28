@@ -714,16 +714,8 @@ class _SummaryPageState extends State<SummaryPage> {
     final kondisi      = item['status_kondisi']?.toString() ?? 'normal';
     final catatan      = item['catatan']?.toString()        ?? '';
 
-    // ✅ REVISI 3: baca foto utama sebagai list
-    // Backend bisa kirim sebagai array (foto_utama) atau string tunggal (foto)
-    final List<String> fotoUtamaList = _parseFotoList(item['foto_utama']) ;
-    // Fallback ke foto tunggal kalau foto_utama kosong
-    final String? fotoSingle = item['foto']?.toString();
-    if (fotoUtamaList.isEmpty && fotoSingle != null && fotoSingle.isNotEmpty) {
-      fotoUtamaList.add(fotoSingle);
-    }
-
-    final fotoTambahan = _safeList(item['foto_tambahan']);
+    final List<String> fotoUtamaList = _parseFotoList(item['foto']);
+    final List<String> fotoTambahan = _parseFotoList(item['foto_tambahan']);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
