@@ -25,11 +25,15 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
   Map<String, dynamic> formData = {};
   bool isLoading = true;
 
-  // Errors per step — hanya diisi setelah step di-touch atau simpan ditekan
+  // Errors per step — hanya diisi setelah simpan ditekan atau submit
   final Map<int, Map<String, String>> _stepErrors = {};
 
-  // Step yang sudah pernah disentuh (simpan / pindah tab setelah simpan)
+  // Step yang sudah pernah di-simpan (bukan sekadar disentuh)
   final Set<int> _touchedSteps = {};
+
+  // ✅ BARU: track field mana saja yang sudah pernah disentuh user (per step)
+  // Format: { stepIndex: { 'field_key', 'field_key2', ... } }
+  final Map<int, Set<String>> _touchedFields = {};
 
   static final Map<int, Map<String, dynamic>> _formCache = {};
 
@@ -48,11 +52,20 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
 
   int get _orderId => widget.orderId;
 
-  // Error yang dikirim ke child page — hanya kalau step ini sudah touched
-  Map<String, String> get _currentErrors =>
-      _touchedSteps.contains(currentStep)
-          ? (_stepErrors[currentStep] ?? {})
-          : {};
+  // ✅ DIUBAH: error yang dikirim ke child hanya untuk field yang sudah disentuh,
+  // KECUALI step sudah pernah di-simpan (touchedSteps) → tampilkan semua error
+  Map<String, String> get _currentErrors {
+    final allErrors = _stepErrors[currentStep] ?? {};
+    if (_touchedSteps.contains(currentStep)) {
+      // Step sudah pernah disimpan → tampilkan semua error
+      return allErrors;
+    }
+    // Step belum disimpan → filter hanya field yang sudah disentuh
+    final touched = _touchedFields[currentStep] ?? {};
+    return Map.fromEntries(
+      allErrors.entries.where((e) => touched.contains(e.key)),
+    );
+  }
 
   @override
   void initState() {
@@ -188,10 +201,27 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
 
   // ─── FORM CHANGED ─────────────────────────────────────────────────────────────
 
+  // ✅ DIUBAH: deteksi field mana yang berubah, catat sebagai touched,
+  //            lalu validasi hanya field itu (bukan seluruh step)
   void _onFormChanged(Map<String, dynamic> data) {
+    // Cari field mana yang berubah dibanding formData sebelumnya
+    final changedKeys = <String>[];
+    data.forEach((key, newVal) {
+      final oldVal = formData[key];
+      if (oldVal?.toString() != newVal?.toString()) {
+        changedKeys.add(key);
+      }
+    });
+
     formData = data;
     _formCache[_orderId] = Map<String, dynamic>.from(data);
-    _touchedSteps.add(currentStep);
+
+    // Tandai field yang berubah sebagai touched
+    _touchedFields[currentStep] ??= {};
+    _touchedFields[currentStep]!.addAll(changedKeys);
+
+    // Validasi semua field step ini (untuk hitung error count di tab),
+    // tapi _currentErrors getter yang mengatur mana yang ditampilkan ke user
     setState(() {
       _stepErrors[currentStep] = _validateStep(currentStep);
     });
@@ -290,6 +320,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
   // ─── SAVE / SUBMIT ────────────────────────────────────────────────────────────
 
   void saveDraft() async {
+    // ✅ Saat simpan ditekan → mark step sebagai touched → tampilkan semua error
     _touchedSteps.add(currentStep);
     final errors = _validateStep(currentStep);
     setState(() => _stepErrors[currentStep] = errors);
@@ -322,7 +353,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
   void submitFinal() async {
     final allErrors = _validateAll();
     if (allErrors.isNotEmpty) {
-      // Mark semua sebagai touched supaya tab indicator muncul
+      // Mark semua step sebagai touched supaya tab indicator dan semua error muncul
       setState(() {
         allErrors.forEach((step, errs) {
           _touchedSteps.add(step);
@@ -463,7 +494,6 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
                   ),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  // Status icon
                   if (isDone)
                     Icon(Icons.check_circle_rounded, size: 13,
                         color: isSelected ? Colors.green.shade500 : Colors.green.shade300)
@@ -479,7 +509,6 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                     color: isSelected ? AppColors.primary : Colors.white,
                   )),
-                  // Error count badge
                   if (hasError) ...[
                     const SizedBox(width: 5),
                     Container(
@@ -542,6 +571,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
 
   Widget _buildBottom(bool isLastStep) {
     final isDone     = inspectionStatus == 'done';
+    // ✅ Bottom error bar hanya muncul kalau step sudah di-simpan (touched)
     final errors     = _stepErrors[currentStep] ?? {};
     final hasErrors  = _touchedSteps.contains(currentStep) && errors.isNotEmpty;
 
@@ -553,7 +583,6 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
       child: SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          // Error summary bar — tap buka detail sheet
           if (hasErrors)
             GestureDetector(
               onTap: () => _showValidationSheet(errors.values.toList(), stepTitle: stepTitles[currentStep]),
@@ -640,7 +669,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     );
   }
 
-  // ─── SHEETS & DIALOGS ─────────────────────────────────────────────────────────
+  // ─── SHEETS & DIALOGS (tidak ada perubahan) ───────────────────────────────────
 
   void _showValidationSheet(List<String> errors, {required String stepTitle}) {
     showModalBottomSheet(
@@ -738,7 +767,6 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
                   ])),
                 ]),
                 const SizedBox(height: 12),
-                // Overview chips
                 Wrap(
                   spacing: 6, runSpacing: 6,
                   children: List.generate(stepTitles.length, (i) {
