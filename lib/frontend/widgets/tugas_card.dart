@@ -226,7 +226,7 @@ class TugasCard extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (_) => DetailInspeksiPage(
                         dataTugas: item,
-                        orderId: item['id'],
+                        orderId: (item['order_id'] ?? item['id']) as int,
                       ),
                     ),
                   ).then((_) => onNavigateBack?.call());
