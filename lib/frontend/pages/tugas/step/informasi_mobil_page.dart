@@ -88,8 +88,43 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
                 _buildField('Jenis Bahan Bakar', 'bahan_bakar', Icons.local_gas_station_outlined),
                 _buildField('Warna', 'warna_mobil', Icons.palette_outlined),
                 _buildField('Jarak Tempuh', 'jarak_tempuh', Icons.straighten_outlined, keyboardType: TextInputType.number),
-                _buildField('Kondisi Tabrak', 'kondisi_tabrak', Icons.car_crash_outlined),
-                _buildField('Kondisi Banjir', 'kondisi_banjir', Icons.water_outlined),
+
+                // ── Kondisi Tabrak ──────────────────────────────────────────
+                _buildConditionSelector(
+                  label: 'Kondisi Tabrak',
+                  key: 'kondisi_tabrak',
+                  icon: Icons.car_crash_outlined,
+                  options: const ['Bebas Tabrak', 'Tabrak Ringan', 'Tabrak Berat'],
+                  activeColors: const [
+                    Color(0xFF4CAF50),
+                    Color(0xFFFFA726),
+                    Color(0xFFF44336),
+                  ],
+                  icons: const [
+                    Icons.check_circle_outline,
+                    Icons.warning_amber_outlined,
+                    Icons.dangerous_outlined,
+                  ],
+                ),
+
+                // ── Kondisi Banjir ──────────────────────────────────────────
+                _buildConditionSelector(
+                  label: 'Kondisi Banjir',
+                  key: 'kondisi_banjir',
+                  icon: Icons.water_outlined,
+                  options: const ['Bebas Banjir', 'Banjir Ringan', 'Banjir Berat'],
+                  activeColors: const [
+                    Color(0xFF4CAF50),
+                    Color(0xFFFFA726),
+                    Color(0xFFF44336),
+                  ],
+                  icons: const [
+                    Icons.check_circle_outline,
+                    Icons.water_damage_outlined,
+                    Icons.flood_outlined,
+                  ],
+                ),
+
                 const SizedBox(height: 4),
                 _buildTextArea('Catatan Tambahan', 'catatan_tambahan'),
               ],
@@ -97,6 +132,124 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
           ),
 
           const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  // ── NEW: Visual condition chip selector ───────────────────────────────────
+  Widget _buildConditionSelector({
+    required String label,
+    required String key,
+    required IconData icon,
+    required List<String> options,
+    required List<Color> activeColors,
+    required List<IconData> icons,
+  }) {
+    final hasError = widget.validationErrors.containsKey(key);
+    final errorMsg = widget.validationErrors[key];
+    final currentValue = widget.formData[key]?.toString();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Label row
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: hasError ? Colors.red.shade400 : AppColors.textGrey,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: hasError ? Colors.red : AppColors.textGrey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Chip row
+          Row(
+            children: List.generate(options.length, (i) {
+              final option = options[i];
+              final isSelected = currentValue == option;
+              final activeColor = activeColors[i];
+
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    updateForm(key, option);
+                    setState(() {});
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: EdgeInsets.only(
+                      right: i < options.length - 1 ? 6 : 0,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? activeColor.withOpacity(0.12)
+                          : const Color(0xFFF8F8F8),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected
+                            ? activeColor
+                            : hasError
+                            ? Colors.red.shade300
+                            : Colors.grey.shade300,
+                        width: isSelected ? 1.8 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          icons[i],
+                          size: 20,
+                          color: isSelected ? activeColor : Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          option,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                            color: isSelected ? activeColor : AppColors.textGrey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+
+          // Error message
+          if (hasError && errorMsg != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 5, left: 4),
+              child: Text(
+                errorMsg,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.red.shade700,
+                ),
+              ),
+            ),
         ],
       ),
     );
