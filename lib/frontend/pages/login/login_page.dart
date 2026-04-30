@@ -3,10 +3,8 @@ import 'package:jip/frontend/pages/main/main_page.dart';
 import '../../core/base_page.dart';
 import '../../utils/colors.dart';
 import '../../widgets/custom_button.dart';
-import '../../widgets/custom_textfield.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
-import '../dashboard/dashboard_page.dart';
 import '../login/register_page.dart';
 import '../login/lupa_password.dart';
 
@@ -22,26 +20,78 @@ class _LoginPageState extends State<LoginPage> with BasePage {
   final TextEditingController passwordController = TextEditingController();
 
   bool isLoading = false;
+  bool obscurePassword = true;
+
+  // Error state per field
+  String? emailError;
+  String? passwordError;
 
   @override
   void dispose() {
-    // 🔥 Fix: Selalu dispose controller untuk menghindari memory leak
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
   }
 
-  void handleLogin() async {
-    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
-      _showMessage("Email dan password tidak boleh kosong");
-      return;
+  // ─── Validasi ───────────────────────────────────────────────────────────────
+
+  bool _validateEmail(String value) {
+    // Cek kosong
+    if (value.trim().isEmpty) {
+      setState(() => emailError = "Email tidak boleh kosong");
+      return false;
     }
+
+    // Cek format email dasar: ada @, ada titik di domain
+    final emailRegex = RegExp(r'^[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      setState(() => emailError = "Format email tidak valid");
+      return false;
+    }
+
+    setState(() => emailError = null);
+    return true;
+  }
+
+  bool _validatePassword(String value) {
+    if (value.isEmpty) {
+      setState(() => passwordError = "Password tidak boleh kosong");
+      return false;
+    }
+
+    // Minimal 6 karakter, hanya huruf atau angka
+    if (value.length < 6) {
+      setState(() => passwordError = "Password minimal 6 karakter");
+      return false;
+    }
+
+    final passwordRegex = RegExp(r'^[a-zA-Z0-9]+$');
+    if (!passwordRegex.hasMatch(value)) {
+      setState(() => passwordError = "Password hanya boleh huruf dan angka");
+      return false;
+    }
+
+    setState(() => passwordError = null);
+    return true;
+  }
+
+  bool _validateAll() {
+    final emailOk = _validateEmail(emailController.text);
+    final passwordOk = _validatePassword(passwordController.text);
+    return emailOk && passwordOk;
+  }
+
+  // ─── Login Handler ───────────────────────────────────────────────────────────
+
+  void handleLogin() async {
+    // Jalankan semua validasi dulu
+    if (!_validateAll()) return;
 
     setState(() => isLoading = true);
 
     try {
       final result = await ApiService.login(
-        email: emailController.text,
+        email: emailController.text.trim(),
         password: passwordController.text,
       );
 
@@ -58,21 +108,17 @@ class _LoginPageState extends State<LoginPage> with BasePage {
           MaterialPageRoute(builder: (_) => const MainPage()),
         );
       } else if (statusCode == 401) {
-        _showMessage("Email atau password salah");
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginPage()),
-        );
+        _showSnackbar("Email atau password salah");
       } else if (statusCode == 500) {
-        _showMessage("Server sedang bermasalah, coba lagi nanti");
+        _showSnackbar("Server sedang bermasalah, coba lagi nanti");
       } else {
-        _showMessage("Terjadi kesalahan (kode: $statusCode)");
+        _showSnackbar("Terjadi kesalahan (kode: $statusCode)");
       }
     } catch (e) {
       if (e.toString().contains("TOKEN_EXPIRED")) {
-        _showMessage("Sesi berakhir, silakan login kembali");
+        _showSnackbar("Sesi berakhir, silakan login kembali");
       } else {
-        _showMessage("Tidak bisa terhubung ke server");
+        _showSnackbar("Tidak bisa terhubung ke server");
       }
       debugPrint("ERROR LOGIN: $e");
     } finally {
@@ -82,14 +128,115 @@ class _LoginPageState extends State<LoginPage> with BasePage {
     }
   }
 
-  void _showMessage(String message) {
+  void _showSnackbar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red,
+        backgroundColor: Colors.red.shade700,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
+
+  // ─── Widget Helpers ──────────────────────────────────────────────────────────
+
+  /// TextField dengan label di atas, outline style, dan error message inline
+  Widget _buildField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    required String hint,
+    TextInputType keyboardType = TextInputType.text,
+    bool isPassword = false,
+    String? errorText,
+    void Function(String)? onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          obscureText: isPassword ? obscurePassword : false,
+          onChanged: (val) {
+            // Real-time clear error saat user mulai mengetik lagi
+            if (onChanged != null) onChanged(val);
+          },
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 14),
+            prefixIcon: Icon(icon, color: Colors.white54, size: 20),
+            suffixIcon: isPassword
+                ? GestureDetector(
+              onTap: () => setState(() => obscurePassword = !obscurePassword),
+              child: Icon(
+                obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                color: Colors.white54,
+                size: 20,
+              ),
+            )
+                : null,
+            filled: true,
+            fillColor: Colors.white.withOpacity(0.1),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: errorText != null
+                    ? Colors.red.shade300
+                    : Colors.white.withOpacity(0.2),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: errorText != null ? Colors.red.shade300 : Colors.white,
+                width: 1.5,
+              ),
+            ),
+            // ⚠️ Error: tidak pakai errorText bawaan Flutter supaya bisa custom style
+          ),
+        ),
+        if (errorText != null) ...[
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.info_outline_rounded, color: Colors.redAccent, size: 14),
+              const SizedBox(width: 4),
+              Text(
+                errorText,
+                style: const TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 12,
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ─── Build ───────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -102,10 +249,7 @@ class _LoginPageState extends State<LoginPage> with BasePage {
               const SizedBox(height: 60),
 
               // LOGO
-              Image.asset(
-                'assets/images/logo.png',
-                width: 140,
-              ),
+              Image.asset('assets/images/logo.png', width: 140),
 
               const SizedBox(height: 48),
 
@@ -116,45 +260,61 @@ class _LoginPageState extends State<LoginPage> with BasePage {
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(24),
+                  // Sedikit shadow biar terasa lebih dalam
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.35),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // HEADER
                     const Text(
                       "Login",
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 22,
+                        fontSize: 24,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       "Selamat datang, silahkan login!",
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 13),
                     ),
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
 
-                    // EMAIL
-                    CustomTextField(
-                      hint: "Email",
+                    // EMAIL FIELD
+                    _buildField(
+                      label: "Email",
                       controller: emailController,
-                      prefixIcon: Icons.email_outlined,
+                      icon: Icons.email_outlined,
+                      hint: "contoh@email.com",
                       keyboardType: TextInputType.emailAddress,
+                      errorText: emailError,
+                      onChanged: (_) {
+                        if (emailError != null) setState(() => emailError = null);
+                      },
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
 
-                    // PASSWORD
-                    CustomTextField(
-                      hint: "Password",
+                    // PASSWORD FIELD
+                    _buildField(
+                      label: "Password",
                       controller: passwordController,
+                      icon: Icons.lock_outline_rounded,
+                      hint: "Min. 6 karakter (huruf/angka)",
                       isPassword: true,
-                      prefixIcon: Icons.lock_outline_rounded,
+                      errorText: passwordError,
+                      onChanged: (_) {
+                        if (passwordError != null) setState(() => passwordError = null);
+                      },
                     ),
 
                     const SizedBox(height: 12),
@@ -163,32 +323,51 @@ class _LoginPageState extends State<LoginPage> with BasePage {
                     Align(
                       alignment: Alignment.centerRight,
                       child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const LupaPassword()),
-                          );
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LupaPassword()),
+                        ),
                         child: Text(
                           "Lupa password?",
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.6),
                             fontSize: 12,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Colors.white.withOpacity(0.4),
                           ),
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
 
                     // BUTTON LOGIN
-                    isLoading
-                        ? const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    )
-                        : CustomButton(
-                      text: "Login",
-                      onPressed: handleLogin,
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: isLoading
+                          ? const Center(
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                      )
+                          : ElevatedButton(
+                        onPressed: handleLogin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.yellow,
+                          foregroundColor: AppColors.primary,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Text(
+                          "Login",
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 24),
@@ -196,17 +375,15 @@ class _LoginPageState extends State<LoginPage> with BasePage {
                     // REGISTER LINK
                     Center(
                       child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const RegisterPage()),
-                          );
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const RegisterPage()),
+                        ),
                         child: RichText(
                           text: TextSpan(
                             text: "Pengguna baru? ",
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withOpacity(0.55),
                               fontSize: 13,
                             ),
                             children: const [
@@ -226,14 +403,11 @@ class _LoginPageState extends State<LoginPage> with BasePage {
                 ),
               ),
 
-              const SizedBox(height: 48),
+              const SizedBox(height: 40),
 
               Text(
                 "© 2025 JIM Pekanbaru",
-                style: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 11,
-                ),
+                style: TextStyle(color: Colors.grey[400], fontSize: 11),
               ),
 
               const SizedBox(height: 24),

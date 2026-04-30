@@ -36,8 +36,6 @@ class _DokumenPageState extends State<DokumenPage> {
   TextEditingController _getController(String key) {
     if (!_controllers.containsKey(key)) {
       String raw = widget.formData[key] ?? "";
-
-      // Khusus field PKB, format saat init
       if (key == 'pkb' && raw.isNotEmpty) {
         final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
         if (digits.isNotEmpty) {
@@ -45,7 +43,6 @@ class _DokumenPageState extends State<DokumenPage> {
           raw = 'Rp ${_formatRupiah(number)}';
         }
       }
-
       _controllers[key] = TextEditingController(text: raw);
     }
     return _controllers[key]!;
@@ -228,15 +225,12 @@ class _DokumenPageState extends State<DokumenPage> {
       if (_controllers.containsKey(key)) {
         final controller = _controllers[key]!;
         String displayValue = value ?? "";
-
-        // Khusus PKB, format ulang jika value berubah dari luar
         if (key == 'pkb' && displayValue.isNotEmpty) {
           final digits = displayValue.replaceAll(RegExp(r'[^0-9]'), '');
           if (digits.isNotEmpty) {
             displayValue = 'Rp ${_formatRupiah(int.parse(digits))}';
           }
         }
-
         if (controller.text != displayValue) {
           controller.text = displayValue;
         }
@@ -259,30 +253,37 @@ class _DokumenPageState extends State<DokumenPage> {
     super.dispose();
   }
 
-  // ─── HELPERS ─────────────────────────────────────────────────────────────────
-
   bool _hasError(String key) => widget.validationErrors.containsKey(key);
   String? _errorText(String key) => widget.validationErrors[key];
+  int get _errorCount => widget.validationErrors.length;
 
   InputDecoration _inputDecoration(String label, {String? fieldKey, Widget? suffixIcon}) {
     final hasError = fieldKey != null && _hasError(fieldKey);
     return InputDecoration(
       labelText: label,
-      labelStyle: TextStyle(color: hasError ? Colors.red : null),
+      labelStyle: TextStyle(
+        fontSize: 13,
+        color: hasError ? Colors.red.shade600 : AppColors.textGrey,
+      ),
       suffixIcon: suffixIcon,
-      errorText: fieldKey != null ? _errorText(fieldKey) : null,
-      errorStyle: const TextStyle(fontSize: 11),
       filled: true,
       fillColor: hasError ? Colors.red.shade50 : const Color(0xFFF8F8F8),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: hasError ? Colors.red : Colors.grey.shade300),
+        borderSide: BorderSide(
+          color: hasError ? Colors.red.shade400 : Colors.grey.shade300,
+          width: hasError ? 1.5 : 1,
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: hasError ? Colors.red : AppColors.primary, width: 1.5),
+        borderSide: BorderSide(
+          color: hasError ? Colors.red.shade500 : AppColors.primary,
+          width: 1.5,
+        ),
       ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     );
   }
 
@@ -294,6 +295,10 @@ class _DokumenPageState extends State<DokumenPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SectionHeader(title: 'Pemeriksaan Dokumen'),
+
+          // ✅ Error summary banner
+          if (_errorCount > 0)
+            _buildErrorBanner(),
 
           // ── STNK ──
           _DokumenCard(
@@ -394,6 +399,63 @@ class _DokumenPageState extends State<DokumenPage> {
     );
   }
 
+  /// ✅ Error summary banner
+  Widget _buildErrorBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3F3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFCDD2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(color: Colors.red.shade100, shape: BoxShape.circle),
+            child: Icon(Icons.warning_amber_rounded, color: Colors.red.shade600, size: 17),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$_errorCount field belum diisi',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.red.shade700),
+                ),
+                Text(
+                  'Lengkapi field yang ditandai merah',
+                  style: TextStyle(fontSize: 11, color: Colors.red.shade500),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ✅ Custom inline error
+  Widget _buildInlineError(String message) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 5, left: 4, bottom: 2),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline_rounded, size: 13, color: Colors.red.shade500),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(fontSize: 11, color: Colors.red.shade600, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFotoBox(String key, String label) {
     return FotoUploadBox(
       label: label,
@@ -411,37 +473,57 @@ class _DokumenPageState extends State<DokumenPage> {
 
   Widget _buildDateField(String label, String key) {
     final controller = _getController(key);
+    final hasError = _hasError(key);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: TextField(
-        controller: controller,
-        readOnly: true,
-        onTap: () async {
-          final picked = await showDatePicker(
-            context: context,
-            initialDate: DateTime.now(),
-            firstDate: DateTime(2000),
-            lastDate: DateTime(2100),
-          );
-          if (picked != null) {
-            final val = picked.toString().split(" ")[0];
-            controller.text = val;
-            updateForm(key, val);
-          }
-        },
-        decoration: _inputDecoration(label, fieldKey: key, suffixIcon: const Icon(Icons.calendar_today)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: controller,
+            readOnly: true,
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime(2000),
+                lastDate: DateTime(2100),
+              );
+              if (picked != null) {
+                final val = picked.toString().split(" ")[0];
+                controller.text = val;
+                updateForm(key, val);
+              }
+            },
+            decoration: _inputDecoration(label, fieldKey: key, suffixIcon: Icon(
+              Icons.calendar_today,
+              size: 18,
+              color: hasError ? Colors.red.shade400 : AppColors.textGrey,
+            )),
+          ),
+          if (hasError && _errorText(key) != null)
+            _buildInlineError(_errorText(key)!),
+        ],
       ),
     );
   }
 
   Widget _buildTextField(String label, String key) {
+    final hasError = _hasError(key);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: TextField(
-        controller: _getController(key),
-        onChanged: (val) => updateForm(key, val),
-        style: const TextStyle(fontSize: 13),
-        decoration: _inputDecoration(label, fieldKey: key),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _getController(key),
+            onChanged: (val) => updateForm(key, val),
+            style: const TextStyle(fontSize: 13),
+            decoration: _inputDecoration(label, fieldKey: key),
+          ),
+          if (hasError && _errorText(key) != null)
+            _buildInlineError(_errorText(key)!),
+        ],
       ),
     );
   }
@@ -456,11 +538,32 @@ class _DokumenPageState extends State<DokumenPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Kepemilikan Mobil",
-            style: TextStyle(color: hasError ? Colors.red : Colors.black87, fontWeight: FontWeight.w600, fontSize: 13),
+          // ✅ Label yang lebih polished
+          Row(
+            children: [
+              Text(
+                "Kepemilikan Mobil",
+                style: TextStyle(
+                  color: hasError ? Colors.red.shade700 : Colors.black87,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+              if (hasError) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Text('Wajib', style: TextStyle(fontSize: 10, color: Colors.red.shade600, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Row(
             children: options.map((val) {
               final isSelected = selected == val;
@@ -471,23 +574,38 @@ class _DokumenPageState extends State<DokumenPage> {
                     margin: const EdgeInsets.only(right: 6),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.grey.shade200,
+                      color: isSelected
+                          ? AppColors.primary.withOpacity(0.08)
+                          : hasError
+                          ? Colors.red.shade50
+                          : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isSelected ? AppColors.primary : (hasError ? Colors.red : Colors.grey.shade300),
+                        color: isSelected
+                            ? AppColors.primary
+                            : hasError
+                            ? Colors.red.shade300
+                            : Colors.grey.shade300,
+                        width: isSelected ? 1.5 : 1,
                       ),
                     ),
-                    child: Center(child: Text(val.toUpperCase())),
+                    child: Center(
+                      child: Text(
+                        val.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? AppColors.primary : Colors.black87,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               );
             }).toList(),
           ),
-          if (hasError)
-            Padding(
-              padding: const EdgeInsets.only(top: 4, left: 4),
-              child: Text(_errorText("kepemilikan_mobil")!, style: const TextStyle(color: Colors.red, fontSize: 11)),
-            ),
+          if (hasError && _errorText("kepemilikan_mobil") != null)
+            _buildInlineError(_errorText("kepemilikan_mobil")!),
         ],
       ),
     );
@@ -495,34 +613,35 @@ class _DokumenPageState extends State<DokumenPage> {
 
   Widget _buildPKBField(String label, String key) {
     final controller = _getController(key);
+    final hasError = _hasError(key);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: TextField(
-        controller: controller,
-        keyboardType: TextInputType.number,
-        onChanged: (val) {
-          // Hapus semua karakter non-digit
-          String digits = val.replaceAll(RegExp(r'[^0-9]'), '');
-
-          // Format dengan titik ribuan
-          String formatted = '';
-          if (digits.isNotEmpty) {
-            final number = int.parse(digits);
-            formatted = 'Rp ${_formatRupiah(number)}';
-          }
-
-          // Update controller tanpa trigger onChanged lagi
-          controller.value = TextEditingValue(
-            text: formatted,
-            selection: TextSelection.collapsed(offset: formatted.length),
-          );
-
-          // Simpan hanya angkanya ke formData
-          updateForm(key, digits);
-        },
-        style: const TextStyle(fontSize: 13),
-        decoration: _inputDecoration(label, fieldKey: key),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            onChanged: (val) {
+              String digits = val.replaceAll(RegExp(r'[^0-9]'), '');
+              String formatted = '';
+              if (digits.isNotEmpty) {
+                final number = int.parse(digits);
+                formatted = 'Rp ${_formatRupiah(number)}';
+              }
+              controller.value = TextEditingValue(
+                text: formatted,
+                selection: TextSelection.collapsed(offset: formatted.length),
+              );
+              updateForm(key, digits);
+            },
+            style: const TextStyle(fontSize: 13),
+            decoration: _inputDecoration(label, fieldKey: key),
+          ),
+          if (hasError && _errorText(key) != null)
+            _buildInlineError(_errorText(key)!),
+        ],
       ),
     );
   }
@@ -531,13 +650,11 @@ class _DokumenPageState extends State<DokumenPage> {
     String result = number.toString();
     String formatted = '';
     int count = 0;
-
     for (int i = result.length - 1; i >= 0; i--) {
       if (count > 0 && count % 3 == 0) formatted = '.$formatted';
       formatted = result[i] + formatted;
       count++;
     }
-
     return formatted;
   }
 
@@ -551,18 +668,49 @@ class _DokumenPageState extends State<DokumenPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: hasError ? Colors.red : Colors.black87,
-            ),
+          // ✅ Label dengan wajib badge
+          Row(
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: hasError ? Colors.red.shade700 : Colors.black87,
+                ),
+              ),
+              if (hasError) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Text('Wajib', style: TextStyle(fontSize: 10, color: Colors.red.shade600, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Row(
             children: options.map((val) {
               final isSelected = selected == val;
+              Color borderColor;
+              Color bgColor;
+
+              if (isSelected) {
+                borderColor = AppColors.primary;
+                bgColor = AppColors.primary.withOpacity(0.08);
+              } else if (hasError) {
+                borderColor = Colors.red.shade300;
+                bgColor = Colors.red.shade50;
+              } else {
+                borderColor = Colors.grey.shade300;
+                bgColor = Colors.grey.shade100;
+              }
+
               return Expanded(
                 child: GestureDetector(
                   onTap: () => updateForm(key, val),
@@ -570,27 +718,28 @@ class _DokumenPageState extends State<DokumenPage> {
                     margin: const EdgeInsets.only(right: 6),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.grey.shade200,
+                      color: bgColor,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: isSelected ? AppColors.primary : (hasError ? Colors.red.shade300 : Colors.grey.shade300),
-                      ),
+                      border: Border.all(color: borderColor, width: isSelected ? 1.5 : 1),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-                          size: 16,
+                          size: 14,
                           color: isSelected ? AppColors.primary : Colors.grey,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          val.replaceAll("_", " ").toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: isSelected ? AppColors.primary : Colors.black87,
+                        Flexible(
+                          child: Text(
+                            val.replaceAll("_", " ").toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: isSelected ? AppColors.primary : Colors.black87,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -600,11 +749,8 @@ class _DokumenPageState extends State<DokumenPage> {
               );
             }).toList(),
           ),
-          if (hasError)
-            Padding(
-              padding: const EdgeInsets.only(top: 4, left: 4),
-              child: Text(_errorText(key)!, style: const TextStyle(color: Colors.red, fontSize: 11)),
-            ),
+          if (hasError && _errorText(key) != null)
+            _buildInlineError(_errorText(key)!),
         ],
       ),
     );
@@ -637,29 +783,60 @@ class _DokumenCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: hasPhotoError
-            ? Border.all(color: Colors.red.shade200)
-            : null,
+            ? Border.all(color: Colors.red.shade200, width: 1.5)
+            : Border.all(color: Colors.transparent),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(judulDokumen, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            if (labelFoto.isNotEmpty) ...[
-              Row(children: [
-                Text(labelFoto),
-                if (hasPhotoError) ...[
-                  const SizedBox(width: 8),
-                  Text(
-                    photoErrorText ?? '',
-                    style: const TextStyle(color: Colors.red, fontSize: 11),
+            // ✅ Card header yang lebih polished
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    judulDokumen,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                   ),
-                ],
-              ]),
-              const SizedBox(height: 10),
+                ),
+                if (hasPhotoError)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.photo_camera_outlined, size: 12, color: Colors.red.shade600),
+                        const SizedBox(width: 4),
+                        Text('Foto wajib', style: TextStyle(fontSize: 10, color: Colors.red.shade600, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            if (labelFoto.isNotEmpty) ...[
+              Text(
+                labelFoto,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
             ],
+
             uploadWidget,
             const SizedBox(height: 14),
             ...extraFields,
