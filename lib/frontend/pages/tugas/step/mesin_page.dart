@@ -39,21 +39,21 @@ class _MesinPageState extends State<MesinPage> {
 
   // 🔥 FALLBACK ID sesuai JSON backend (perhatikan typo di backend: "Condisioner", "Aki/Baterai")
   static const Map<String, int> fallbackMap = {
-    "Bullhead Depan": 36,
-    "Bullhead Kiri": 37,
-    "Bullhead Kanan": 38,
-    "Support Depan Kiri": 39,
-    "Support Depan Kanan": 40,
-    "Crossbeam Depan": 41,
-    "Tiang Vertikal": 42,
-    "Kondisi Tampak Mesin": 43,
-    "Tutup Pengisian Oli dan Dipstick": 44,
-    "Kopling dan Transmisi": 45,
-    "Starter": 46,
-    "Aki/Baterai": 47,
-    "Perangkat Air Condisioner": 48,
-    "Hasil Scanner": 49,
-    "Knalpot": 50,
+    "Bullhead Depan": 37,
+    "Bullhead Kiri": 38,
+    "Bullhead Kanan": 39,
+    "Support Depan Kiri": 40,
+    "Support Depan Kanan": 41,
+    "Crossbeam Depan": 42,
+    "Tiang Vertikal": 43,
+    "Kondisi Tampak Mesin": 44,
+    "Tutup Pengisian Oli dan Dipstick": 45,
+    "Kopling dan Transmisi": 46,
+    "Starter": 47,
+    "Aki/Baterai": 48,
+    "Perangkat Air Condisioner": 49,
+    "Hasil Scanner": 50,
+    "Knalpot": 51,
   };
 
   Map<String, int> itemIdMap = {};
