@@ -325,7 +325,11 @@ class ApiService {
     }
 
     if (statusCode >= 500) {
-      throw Exception("SERVER_ERROR");
+      // Ambil pesan dari backend kalau ada, fallback ke pesan generik
+      final message = (data is Map && data["message"] != null)
+          ? data["message"].toString()
+          : "Terjadi kesalahan pada server (500).";
+      throw Exception(message);
     }
 
     if (statusCode < 200 || statusCode >= 300) {
@@ -444,7 +448,9 @@ class ApiService {
         "kapasitas_mesin": int.tryParse(data["kapasitas_mesin"]?.toString() ?? "0") ?? 0,
         "bahan_bakar":     data["bahan_bakar"]?.toString() ?? "",
         "warna_mobil":     data["warna_mobil"]?.toString() ?? "",
-        "jarak_tempuh":    int.tryParse(data["jarak_tempuh"]?.toString() ?? "0") ?? 0,
+        "jarak_tempuh": int.tryParse(
+            (data["jarak_tempuh"]?.toString() ?? "0").replaceAll(',', '')
+        ) ?? 0,
         "kondisi_tabrak":  data["kondisi_tabrak"]?.toString() ?? "",
         "kondisi_banjir":  data["kondisi_banjir"]?.toString() ?? "",
         "catatan_tambahan": data["catatan_tambahan"]?.toString() ?? "",

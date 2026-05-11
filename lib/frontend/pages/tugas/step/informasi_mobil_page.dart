@@ -1,6 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../utils/colors.dart';
 import '../../../widgets/section_header.dart';
+
+// ── Formatter: 1000 → 1,000 ──────────────────────────────────────────────────
+class _ThousandSeparatorFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue,
+      TextEditingValue newValue,
+      ) {
+    // Strip all non-digit characters
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return newValue.copyWith(text: '');
+
+    // Format with commas
+    final formatted = _addCommas(digits);
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+
+  String _addCommas(String digits) {
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      final posFromRight = digits.length - 1 - i;
+      if (i != 0 && posFromRight % 3 == 2) buffer.write(',');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
+  }
+}
 
 class InformasiMobilPage extends StatefulWidget {
   final Map<String, dynamic> formData;
@@ -29,7 +61,7 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
   TextEditingController _getController(String key) {
     if (!controllers.containsKey(key)) {
       final value = widget.formData[key];
-      controllers[key] = TextEditingController(text: value?.toString() ?? "");
+      controllers[key] = TextEditingController(text: value?.toString() ?? '');
     }
     return controllers[key]!;
   }
@@ -40,7 +72,7 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
     widget.formData.forEach((key, value) {
       if (controllers.containsKey(key)) {
         final controller = controllers[key]!;
-        final newVal = value?.toString() ?? "";
+        final newVal = value?.toString() ?? '';
         if (controller.text != newVal) {
           controller.text = newVal;
         }
@@ -81,15 +113,76 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
             ),
             child: Column(
               children: [
-                _buildField('Nomor Polisi', 'nomor_polisi', Icons.confirmation_number_outlined),
-                _buildField('Tipe', 'tipe_mobil', Icons.directions_car_outlined),
-                _buildField('Transmisi', 'transmisi', Icons.settings_outlined),
-                _buildField('Kapasitas Mesin', 'kapasitas_mesin', Icons.speed_outlined, keyboardType: TextInputType.number),
-                _buildField('Jenis Bahan Bakar', 'bahan_bakar', Icons.local_gas_station_outlined),
-                _buildField('Warna', 'warna_mobil', Icons.palette_outlined),
-                _buildField('Jarak Tempuh', 'jarak_tempuh', Icons.straighten_outlined, keyboardType: TextInputType.number),
+                // ── Free-text fields ──────────────────────────────────────
+                _buildField(
+                  'Nomor Polisi',
+                  'nomor_polisi',
+                  Icons.confirmation_number_outlined,
+                ),
+                _buildField(
+                  'Tipe',
+                  'tipe_mobil',
+                  Icons.directions_car_outlined,
+                ),
 
-                // ── Kondisi Tabrak ──────────────────────────────────────────
+                // ── Transmisi selector ────────────────────────────────────
+                _buildConditionSelector(
+                  label: 'Transmisi',
+                  key: 'transmisi',
+                  icon: Icons.settings_outlined,
+                  options: const ['Automatic', 'Manual'],
+                  activeColors: const [
+                    Color(0xFF1E88E5),
+                    Color(0xFF8E24AA),
+                  ],
+                  icons: const [
+                    Icons.auto_mode_outlined,
+                    Icons.tune_outlined,
+                  ],
+                ),
+
+                // ── Kapasitas Mesin (plain number) ────────────────────────
+                _buildField(
+                  'Kapasitas Mesin (cc)',
+                  'kapasitas_mesin',
+                  Icons.speed_outlined,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                ),
+
+                // ── Jenis Bahan Bakar selector ────────────────────────────
+                _buildConditionSelector(
+                  label: 'Jenis Bahan Bakar',
+                  key: 'bahan_bakar',
+                  icon: Icons.local_gas_station_outlined,
+                  options: const ['Solar', 'Bensin'],
+                  activeColors: const [
+                    Color(0xFF00897B),
+                    Color(0xFFFB8C00),
+                  ],
+                  icons: const [
+                    Icons.opacity_outlined,
+                    Icons.local_fire_department_outlined,
+                  ],
+                ),
+
+                // ── Warna ─────────────────────────────────────────────────
+                _buildField(
+                  'Warna',
+                  'warna_mobil',
+                  Icons.palette_outlined,
+                ),
+
+                // ── Jarak Tempuh (formatted: 1,300) ───────────────────────
+                _buildField(
+                  'Jarak Tempuh (km)',
+                  'jarak_tempuh',
+                  Icons.straighten_outlined,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [_ThousandSeparatorFormatter()],
+                ),
+
+                // ── Kondisi Tabrak ────────────────────────────────────────
                 _buildConditionSelector(
                   label: 'Kondisi Tabrak',
                   key: 'kondisi_tabrak',
@@ -107,7 +200,7 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
                   ],
                 ),
 
-                // ── Kondisi Banjir ──────────────────────────────────────────
+                // ── Kondisi Banjir ────────────────────────────────────────
                 _buildConditionSelector(
                   label: 'Kondisi Banjir',
                   key: 'kondisi_banjir',
@@ -126,7 +219,9 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
                 ),
 
                 const SizedBox(height: 4),
-                _buildTextArea('Catatan Tambahan', 'catatan_tambahan'),
+
+                // ── Kesimpulan (formerly Catatan Tambahan) ────────────────
+                _buildTextArea('Kesimpulan', 'catatan_tambahan'),
               ],
             ),
           ),
@@ -137,7 +232,7 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
     );
   }
 
-  // ── NEW: Visual condition chip selector ───────────────────────────────────
+  // ── Visual condition / option chip selector ───────────────────────────────
   Widget _buildConditionSelector({
     required String label,
     required String key,
@@ -195,7 +290,10 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
                     margin: EdgeInsets.only(
                       right: i < options.length - 1 ? 6 : 0,
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: isSelected
                           ? activeColor.withOpacity(0.12)
@@ -216,7 +314,8 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
                         Icon(
                           icons[i],
                           size: 20,
-                          color: isSelected ? activeColor : Colors.grey.shade400,
+                          color:
+                          isSelected ? activeColor : Colors.grey.shade400,
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -227,7 +326,8 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
                             fontWeight: isSelected
                                 ? FontWeight.w600
                                 : FontWeight.normal,
-                            color: isSelected ? activeColor : AppColors.textGrey,
+                            color:
+                            isSelected ? activeColor : AppColors.textGrey,
                           ),
                         ),
                       ],
@@ -244,10 +344,7 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
               padding: const EdgeInsets.only(top: 5, left: 4),
               child: Text(
                 errorMsg,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.red.shade700,
-                ),
+                style: TextStyle(fontSize: 11, color: Colors.red.shade700),
               ),
             ),
         ],
@@ -255,7 +352,14 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
     );
   }
 
-  Widget _buildField(String label, String key, IconData icon, {TextInputType? keyboardType}) {
+  // ── Text field (with optional formatters) ─────────────────────────────────
+  Widget _buildField(
+      String label,
+      String key,
+      IconData icon, {
+        TextInputType? keyboardType,
+        List<TextInputFormatter>? inputFormatters,
+      }) {
     final hasError = widget.validationErrors.containsKey(key);
     final errorMsg = widget.validationErrors[key];
 
@@ -265,6 +369,7 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
         controller: _getController(key),
         onChanged: (val) => updateForm(key, val),
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
         style: const TextStyle(fontSize: 13, color: AppColors.textDark),
         decoration: InputDecoration(
           labelText: label,
@@ -280,9 +385,12 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
           errorText: errorMsg,
           errorStyle: const TextStyle(fontSize: 11),
           filled: true,
-          fillColor: hasError ? Colors.red.shade50 : const Color(0xFFF8F8F8),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          fillColor:
+          hasError ? Colors.red.shade50 : const Color(0xFFF8F8F8),
+          contentPadding:
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          border:
+          OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(
@@ -301,29 +409,61 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
     );
   }
 
-  Widget _buildTextArea(String hint, String key) {
+  // ── Multi-line text area with label title ─────────────────────────────────
+  Widget _buildTextArea(String title, String key) {
     final hasError = widget.validationErrors.containsKey(key);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        controller: _getController(key),
-        onChanged: (val) => updateForm(key, val),
-        maxLines: 3,
-        style: const TextStyle(fontSize: 13, color: AppColors.textDark),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-          errorText: widget.validationErrors[key],
-          filled: true,
-          fillColor: hasError ? Colors.red.shade50 : const Color(0xFFF8F8F8),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: hasError ? Colors.red : Colors.grey.shade300),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title label above the text area
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 13,
+                color: hasError ? Colors.red : AppColors.textGrey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
-        ),
+          TextField(
+            controller: _getController(key),
+            onChanged: (val) => updateForm(key, val),
+            maxLines: 3,
+            style: const TextStyle(fontSize: 13, color: AppColors.textDark),
+            decoration: InputDecoration(
+              hintText: 'Tulis kesimpulan di sini...',
+              hintStyle:
+              TextStyle(fontSize: 13, color: Colors.grey.shade400),
+              errorText: widget.validationErrors[key],
+              filled: true,
+              fillColor:
+              hasError ? Colors.red.shade50 : const Color(0xFFF8F8F8),
+              contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: hasError ? Colors.red : Colors.grey.shade300,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: hasError ? Colors.red : AppColors.primary,
+                  width: 1.5,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
