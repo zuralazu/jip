@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../utils/colors.dart';
 import '../../../widgets/section_header.dart';
 import '../../../widgets/foto_upload_box.dart';
@@ -78,7 +79,8 @@ class _DokumenPageState extends State<DokumenPage> {
     if (rangkaMatch != null) {
       foundRangka = rangkaMatch.group(0)!;
       updateForm("nomor_rangka", foundRangka);
-      _getController("nomor_rangka").text = foundRangka;
+      // Show uppercase in controller, store as-is (already uppercase from OCR)
+      _getController("nomor_rangka").text = foundRangka.toUpperCase();
     }
 
     String? foundBpkb;
@@ -113,7 +115,7 @@ class _DokumenPageState extends State<DokumenPage> {
 
     if (foundBpkb != null) {
       updateForm("nomor_bpkb", foundBpkb);
-      _getController("nomor_bpkb").text = foundBpkb;
+      _getController("nomor_bpkb").text = foundBpkb.toUpperCase();
     }
 
     RegExp mesinRegExp = RegExp(r'\b[A-Z0-9\-]{5,15}\b');
@@ -126,7 +128,7 @@ class _DokumenPageState extends State<DokumenPage> {
           cleanMesin.contains(RegExp(r'[0-9]')) &&
           cleanMesin.contains(RegExp(r'[A-Z]'))) {
         updateForm("nomor_mesin", potentialMesin);
-        _getController("nomor_mesin").text = potentialMesin;
+        _getController("nomor_mesin").text = potentialMesin.toUpperCase();
         break;
       }
     }
@@ -152,7 +154,7 @@ class _DokumenPageState extends State<DokumenPage> {
 
     if (foundNama != null) {
       updateForm("nama_pemilik", foundNama);
-      _getController("nama_pemilik").text = foundNama;
+      _getController("nama_pemilik").text = foundNama.toUpperCase();
     }
 
     if (isStnk) {
@@ -225,18 +227,33 @@ class _DokumenPageState extends State<DokumenPage> {
       if (_controllers.containsKey(key)) {
         final controller = _controllers[key]!;
         String displayValue = value ?? "";
+
+        // PKB tetap format Rupiah
         if (key == 'pkb' && displayValue.isNotEmpty) {
           final digits = displayValue.replaceAll(RegExp(r'[^0-9]'), '');
           if (digits.isNotEmpty) {
             displayValue = 'Rp ${_formatRupiah(int.parse(digits))}';
           }
         }
+        // Field uppercase: tampilkan huruf besar di controller
+        else if (_uppercaseFields.contains(key)) {
+          displayValue = displayValue.toUpperCase();
+        }
+
         if (controller.text != displayValue) {
           controller.text = displayValue;
         }
       }
     });
   }
+
+  /// Field yang tampil uppercase di UI (value ke backend tetap as-is)
+  static const _uppercaseFields = {
+    'nomor_rangka',
+    'nomor_mesin',
+    'nama_pemilik',
+    'nomor_bpkb',
+  };
 
   void updateForm(String key, dynamic value) {
     setState(() {
@@ -296,9 +313,7 @@ class _DokumenPageState extends State<DokumenPage> {
         children: [
           const SectionHeader(title: 'Pemeriksaan Dokumen'),
 
-          // ✅ Error summary banner
-          if (_errorCount > 0)
-            _buildErrorBanner(),
+          if (_errorCount > 0) _buildErrorBanner(),
 
           // ── STNK ──
           _DokumenCard(
@@ -322,8 +337,8 @@ class _DokumenPageState extends State<DokumenPage> {
               _buildDateField('Pajak 1 Tahun', "pajak_1_tahun"),
               _buildDateField('Pajak 5 Tahun', "pajak_5_tahun"),
               _buildPKBField('PKB', "pkb"),
-              _buildTextField('Nomor Rangka', "nomor_rangka"),
-              _buildTextField('Nomor Mesin', "nomor_mesin"),
+              _buildTextField('Nomor Rangka', "nomor_rangka", uppercase: true),
+              _buildTextField('Nomor Mesin', "nomor_mesin", uppercase: true),
             ],
           ),
 
@@ -335,39 +350,62 @@ class _DokumenPageState extends State<DokumenPage> {
             labelFoto: 'Foto BPKB',
             hasPhotoError: _hasError('foto_bpkb_1'),
             photoErrorText: _errorText('foto_bpkb_1'),
-            uploadWidget: Column(
+            uploadWidget: Stack(
               children: [
-                _buildFotoBox("foto_bpkb_1", "Foto BPKB HALAMAN 1"),
-                const SizedBox(height: 8),
-                _buildFotoBox("foto_bpkb_2", "Foto BPKB HALAMAN 2"),
-                const SizedBox(height: 8),
-                _buildFotoBox("foto_bpkb_3", "Foto BPKB HALAMAN 3"),
-                const SizedBox(height: 8),
-                _buildFotoBox("foto_bpkb_4", "Foto BPKB HALAMAN 4"),
+                // ── Grid 2x2 ─────────────────────────────────────────────
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: _buildFotoBox("foto_bpkb_1", "Halaman 1")),
+                        const SizedBox(width: 8),
+                        Expanded(child: _buildFotoBox("foto_bpkb_2", "Halaman 2")),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: _buildFotoBox("foto_bpkb_3", "Halaman 3")),
+                        const SizedBox(width: 8),
+                        Expanded(child: _buildFotoBox("foto_bpkb_4", "Halaman 4")),
+                      ],
+                    ),
+                  ],
+                ),
+
+                // ── OCR loading overlay ───────────────────────────────────
                 if (isScanningOcr)
-                  Container(
-                    color: Colors.black.withOpacity(0.3),
-                    child: const Center(
-                      child: Card(
-                        child: Padding(
-                          padding: EdgeInsets.all(20),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CircularProgressIndicator(),
-                              SizedBox(height: 16),
-                              Text("Membaca Teks Dokumen...", style: TextStyle(fontWeight: FontWeight.bold)),
-                            ],
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(20),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 12),
+                                Text(
+                                  "Membaca Teks Dokumen...",
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  )
+                  ),
               ],
             ),
             extraFields: [
-              _buildTextField('Nama Pemilik', "nama_pemilik"),
-              _buildTextField('Nomor BPKB', "nomor_bpkb"),
+              _buildTextField('Nama Pemilik', "nama_pemilik", uppercase: true),
+              _buildTextField('Nomor BPKB', "nomor_bpkb", uppercase: true),
               _buildKepemilikanSelector(),
               _buildOptionSelector('SPH', "sph"),
               _buildOptionSelector('Benang Pembatas', "benang_pembatas"),
@@ -399,7 +437,6 @@ class _DokumenPageState extends State<DokumenPage> {
     );
   }
 
-  /// ✅ Error summary banner
   Widget _buildErrorBanner() {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -437,7 +474,6 @@ class _DokumenPageState extends State<DokumenPage> {
     );
   }
 
-  /// ✅ Custom inline error
   Widget _buildInlineError(String message) {
     return Padding(
       padding: const EdgeInsets.only(top: 5, left: 4, bottom: 2),
@@ -508,7 +544,8 @@ class _DokumenPageState extends State<DokumenPage> {
     );
   }
 
-  Widget _buildTextField(String label, String key) {
+  /// [uppercase] = true → tampil huruf besar di layar, value ke backend tetap as-is
+  Widget _buildTextField(String label, String key, {bool uppercase = false}) {
     final hasError = _hasError(key);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -517,7 +554,15 @@ class _DokumenPageState extends State<DokumenPage> {
         children: [
           TextField(
             controller: _getController(key),
-            onChanged: (val) => updateForm(key, val),
+            // TextCapitalization + UpperCaseTextFormatter hanya mengubah tampilan
+            textCapitalization: uppercase ? TextCapitalization.characters : TextCapitalization.none,
+            inputFormatters: uppercase ? [_UpperCaseFormatter()] : null,
+            onChanged: (val) {
+              // Simpan value apa adanya (formatter sudah ubah controller text ke upper,
+              // tapi val yang masuk ke sini sudah uppercase karena formatter jalan duluan)
+              // Kita simpan as-is supaya tidak double-convert
+              updateForm(key, val);
+            },
             style: const TextStyle(fontSize: 13),
             decoration: _inputDecoration(label, fieldKey: key),
           ),
@@ -538,7 +583,6 @@ class _DokumenPageState extends State<DokumenPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ✅ Label yang lebih polished
           Row(
             children: [
               Text(
@@ -591,6 +635,7 @@ class _DokumenPageState extends State<DokumenPage> {
                     ),
                     child: Center(
                       child: Text(
+                        // ── UI uppercase, value tetap lowercase ──
                         val.toUpperCase(),
                         style: TextStyle(
                           fontSize: 12,
@@ -668,7 +713,6 @@ class _DokumenPageState extends State<DokumenPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ✅ Label dengan wajib badge
           Row(
             children: [
               Text(
@@ -733,6 +777,7 @@ class _DokumenPageState extends State<DokumenPage> {
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
+                            // ── UI uppercase, value tetap lowercase ──
                             val.replaceAll("_", " ").toUpperCase(),
                             style: TextStyle(
                               fontSize: 10,
@@ -754,6 +799,17 @@ class _DokumenPageState extends State<DokumenPage> {
         ],
       ),
     );
+  }
+}
+
+// ── Formatter: tampilkan uppercase di TextField, tidak ubah value backend ─────
+class _UpperCaseFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue,
+      TextEditingValue newValue,
+      ) {
+    return newValue.copyWith(text: newValue.text.toUpperCase());
   }
 }
 
@@ -798,7 +854,6 @@ class _DokumenCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ✅ Card header yang lebih polished
             Row(
               children: [
                 Expanded(

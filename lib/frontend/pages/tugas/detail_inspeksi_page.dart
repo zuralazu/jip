@@ -346,7 +346,8 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
       _showSuccessToast('Perubahan berhasil disimpan!');
     } catch (e) {
       _hideLoading();
-      _showErrorDialog('Gagal simpan: ${e.toString()}');
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      _showErrorDialog(msg);
     }
   }
 
