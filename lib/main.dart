@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:jip/frontend/pages/profile/profile.dart';
 import 'package:jip/frontend/pages/slip-komisi/slip_komisi_page.dart';
+import 'package:camera/camera.dart';
 
 import 'frontend/pages/dashboard/dashboard_page.dart';
 import 'frontend/pages/splash/splash_page.dart';
@@ -11,10 +12,13 @@ import 'frontend/pages/tugas/pesanan/tambah_pesanan_page.dart';
 import 'frontend/pages/tugas/tugas_page.dart';
 import 'frontend/pages/main/main_page.dart';
 
+late List<CameraDescription> globalCameras;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
   await FlutterDownloader.initialize(debug: true);
+  globalCameras = await availableCameras();
   runApp(const MyApp());
 }
 

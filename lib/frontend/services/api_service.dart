@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -339,6 +340,63 @@ class ApiService {
     return {"statusCode": statusCode, "data": data};
   }
 
+  static Future<void> _saveOneItem({
+    required int orderId,
+    required int itemId,
+    required String section,
+    required String kondisi,
+    required String catatan,
+    required List<String> fotoUtama,
+    required List<String> fotoKerusakan,
+  }) async {
+    try {
+      final token = await AuthService.getToken();
+      final uri = Uri.parse('$baseUrl/tugas/$orderId/$section/$itemId');
+      debugPrint('URL: $uri');
+
+      // Kalau ada foto file lokal → pakai multipart, kalau tidak → JSON biasa
+      final hasLocalPhoto = fotoUtama.any((p) => !p.startsWith('http') && File(p).existsSync()) ||
+          fotoKerusakan.any((p) => !p.startsWith('http') && File(p).existsSync());
+
+      if (hasLocalPhoto) {
+        final request = http.MultipartRequest('POST', uri)
+          ..headers['Authorization'] = 'Bearer $token'
+          ..fields['status_kondisi'] = kondisi.toLowerCase()
+          ..fields['catatan'] = catatan;
+
+        for (final path in fotoUtama) {
+          if (!path.startsWith('http') && File(path).existsSync()) {
+            request.files.add(await http.MultipartFile.fromPath('foto_utama[]', path));
+          }
+        }
+        for (final path in fotoKerusakan) {
+          if (!path.startsWith('http') && File(path).existsSync()) {
+            request.files.add(await http.MultipartFile.fromPath('foto_kerusakan[]', path));
+          }
+        }
+
+        final streamed = await request.send();
+        debugPrint('ITEM $itemId: ${streamed.statusCode}');
+      } else {
+        final res = await http.post(
+          uri,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'status_kondisi': kondisi.toLowerCase(),
+            'catatan': catatan,
+          }),
+        );
+        debugPrint('ITEM $itemId: ${res.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('ERROR item $itemId: $e');
+      // eagerError: false → item lain tetap jalan meski 1 gagal
+    }
+  }
+
   static Future<Map<String, dynamic>> getInterior(int orderId) async {
     final token = await AuthService.getToken();
     final response = await http.get(
@@ -451,13 +509,37 @@ class ApiService {
         "jarak_tempuh": int.tryParse(
             (data["jarak_tempuh"]?.toString() ?? "0").replaceAll(',', '')
         ) ?? 0,
-        "kondisi_tabrak":  data["kondisi_tabrak"]?.toString() ?? "",
-        "kondisi_banjir":  data["kondisi_banjir"]?.toString() ?? "",
-        "catatan_tambahan": data["catatan_tambahan"]?.toString() ?? "",
       }),
     );
 
     // 🔥 DEBUG: lihat full response
+    print("STATUS: ${response.statusCode}");
+    print("BODY: ${response.body}");
+
+    return _handleResponse(response);
+  }
+
+  static Future saveKesimpulan(int orderId, Map data) async {
+    final token = await AuthService.getToken();
+
+    print("=== SAVE KESIMPULAN ===");
+    print("ORDER ID: $orderId");
+    print("DATA: $data");
+
+    final response = await http.post(
+      Uri.parse("$baseUrl/tugas/$orderId/kesimpulan"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: jsonEncode({
+        "kondisi_tabrak":   data["kondisi_tabrak"]?.toString() ?? "",
+        "kondisi_banjir":   data["kondisi_banjir"]?.toString() ?? "",
+        "catatan_tambahan": data["catatan_tambahan"]?.toString() ?? "",
+      }),
+    );
+
     print("STATUS: ${response.statusCode}");
     print("BODY: ${response.body}");
 
@@ -535,351 +617,136 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  static Future<void> saveInterior(
+  static Future<Map<String, dynamic>> saveInterior(
       int orderId,
-      Map<String, dynamic> data, {bool isFinal = false,}
-      ) async {
+      Map<String, dynamic> formData, {
+        bool isFinal = false,
+      }) async {
+    final sectionData = formData['interior'];
+    if (sectionData == null || sectionData is! Map) return {"statusCode": 200};
 
-    final token = await AuthService.getToken();
+    // Kumpulkan semua request, jalankan BERSAMAAN
+    final futures = <Future>[];
 
-    print("=== SAVE INTERIOR DIPANGGIL ===");
-    print("ORDER ID: $orderId");
-    print("DATA KEYS: ${data.keys.toList()}");
-    print("INTERIOR KEY ADA?: ${data.containsKey('interior')}");
-    print("INTERIOR VALUE: ${data['interior']}");
+    sectionData.forEach((key, value) {
+      final itemId = int.tryParse(key.toString());
+      if (itemId == null || value is! Map) return;
 
-    final interior = data["interior"] ?? {};
-    print("INTERIOR ENTRIES COUNT: ${interior.entries.length}");
-    print("INTERIOR KEYS: ${interior.keys.toList()}");
-
-
-
-    for (var entry in interior.entries) {
-      final itemId = entry.key;
-
-      // 🔥 skip kalau bukan angka
-      if (int.tryParse(itemId) == null) continue;
-
-      final itemData = entry.value;
-
-      final request = http.MultipartRequest(
-        "POST",
-        Uri.parse("$baseUrl/tugas/$orderId/interior/$itemId"),
+      futures.add(
+        _saveOneItem(
+          orderId: orderId,
+          itemId: itemId,
+          section: 'interior',
+          kondisi: value['status_kondisi']?.toString() ?? 'Normal',
+          catatan: value['catatan']?.toString() ?? '',
+          fotoUtama: value['foto_utama'] is List ? List<String>.from(value['foto_utama']) : [],
+          fotoKerusakan: value['foto_kerusakan'] is List ? List<String>.from(value['foto_kerusakan']) : [],
+        ),
       );
+    });
 
-      request.headers["Authorization"] = "Bearer $token";
-
-      request.fields["status_kondisi"] = (itemData["status_kondisi"] ?? "normal")
-          .toString()
-          .toLowerCase()
-          .replaceAll(' ', '_');
-      request.fields["catatan"] = itemData["catatan"] ?? "";
-      request.fields["is_draft"] = isFinal ? "0" : "1";
-
-      final fotoUtamaList = itemData["foto_utama"];
-      if (fotoUtamaList is List && fotoUtamaList.isNotEmpty) {
-        for (final path in fotoUtamaList) {
-          if (path != null && path.toString().isNotEmpty) {
-            final file = File(path.toString());
-            if (await file.exists()) {
-              request.files.add(await http.MultipartFile.fromPath(
-                "foto_utama[]",
-                file.path,
-              ));
-            }
-          }
-        }
-      } else {
-        // Fallback: format lama (single foto string)
-        final foto = itemData["foto"];
-        if (foto != null && foto.toString().isNotEmpty) {
-          final file = File(foto.toString());
-          if (await file.exists()) {
-            request.files.add(await http.MultipartFile.fromPath(
-              "foto_utama",
-              file.path,
-            ));
-          }
-        }
-      }
-
-// Foto kerusakan (tidak berubah, tapi tambah null check)
-      final fotoKerusakan = itemData["foto_kerusakan"];
-      if (fotoKerusakan is List) {
-        for (var path in fotoKerusakan) {
-          if (path != null && path.toString().isNotEmpty) {
-            final file = File(path.toString());
-            if (await file.exists()) {
-              request.files.add(await http.MultipartFile.fromPath(
-                "foto_tambahan[]",
-                file.path,
-              ));
-            }
-          }
-        }
-      }
-
-      final res = await http.Response.fromStream(await request.send());
-
-      print("INTERIOR ITEM ID: $itemId");
-      print("STATUS: ${res.statusCode}");
-      print("BODY RESPONSE: ${res.body}");
-
-      if (res.statusCode != 200) {
-        throw Exception("Gagal simpan interior item $itemId");
-      }
-    }
+    // Semua request jalan bersamaan — total waktu = request TERLAMA, bukan jumlah semua
+    await Future.wait(futures, eagerError: false);
+    return {"statusCode": 200};
   }
 
-  static Future<void> saveEksterior(
+  static Future<Map<String, dynamic>> saveEksterior(
       int orderId,
-      Map<String, dynamic> data,{bool isFinal = false,}
-      ) async {
-    final token = await AuthService.getToken();
+      Map<String, dynamic> formData, {
+        bool isFinal = false,
+      }) async {
+    final sectionData = formData['eksterior'];
+    if (sectionData == null || sectionData is! Map) return {"statusCode": 200};
 
-    final eksterior = data["eksterior"] ?? {};
+    // Kumpulkan semua request, jalankan BERSAMAAN
+    final futures = <Future>[];
 
-    for (var entry in eksterior.entries) {
-      final itemId = entry.key;
+    sectionData.forEach((key, value) {
+      final itemId = int.tryParse(key.toString());
+      if (itemId == null || value is! Map) return;
 
-      // ❗ WAJIB: skip kalau masih temp
-      if (int.tryParse(itemId) == null) continue;
-
-      final itemData = entry.value;
-
-      final request = http.MultipartRequest(
-        "POST",
-        Uri.parse("$baseUrl/tugas/$orderId/eksterior/$itemId"),
+      futures.add(
+        _saveOneItem(
+          orderId: orderId,
+          itemId: itemId,
+          section: 'eksterior',
+          kondisi: value['status_kondisi']?.toString() ?? 'Normal',
+          catatan: value['catatan']?.toString() ?? '',
+          fotoUtama: value['foto_utama'] is List ? List<String>.from(value['foto_utama']) : [],
+          fotoKerusakan: value['foto_kerusakan'] is List ? List<String>.from(value['foto_kerusakan']) : [],
+        ),
       );
+    });
 
-      request.headers["Authorization"] = "Bearer $token";
-
-      request.fields["status_kondisi"] = (itemData["status_kondisi"] ?? "normal")
-          .toString()
-          .toLowerCase()
-          .replaceAll(' ', '_');
-      request.fields["catatan"] = itemData["catatan"] ?? "";
-      request.fields["is_draft"] = isFinal ? "0" : "1";
-
-      final fotoUtamaList = itemData["foto_utama"];
-      if (fotoUtamaList is List && fotoUtamaList.isNotEmpty) {
-        for (final path in fotoUtamaList) {
-          if (path != null && path.toString().isNotEmpty) {
-            final file = File(path.toString());
-            if (await file.exists()) {
-              request.files.add(await http.MultipartFile.fromPath(
-                "foto_utama[]",
-                file.path,
-              ));
-            }
-          }
-        }
-      } else {
-        // Fallback: format lama (single foto string)
-        final foto = itemData["foto"];
-        if (foto != null && foto.toString().isNotEmpty) {
-          final file = File(foto.toString());
-          if (await file.exists()) {
-            request.files.add(await http.MultipartFile.fromPath(
-              "foto_utama",
-              file.path,
-            ));
-          }
-        }
-      }
-
-// Foto kerusakan (tidak berubah, tapi tambah null check)
-      final fotoKerusakan = itemData["foto_kerusakan"];
-      if (fotoKerusakan is List) {
-        for (var path in fotoKerusakan) {
-          if (path != null && path.toString().isNotEmpty) {
-            final file = File(path.toString());
-            if (await file.exists()) {
-              request.files.add(await http.MultipartFile.fromPath(
-                "foto_tambahan[]",
-                file.path,
-              ));
-            }
-          }
-        }
-      }
-
-      final res = await http.Response.fromStream(await request.send());
-
-      print("EKSTERIOR ITEM ID: $itemId");
-      print("STATUS: ${res.statusCode}");
-
-      if (res.statusCode != 200) {
-        throw Exception("Gagal simpan eksterior item $itemId");
-      }
-    }
+    // Semua request jalan bersamaan — total waktu = request TERLAMA, bukan jumlah semua
+    await Future.wait(futures, eagerError: false);
+    return {"statusCode": 200};
   }
 
-  static Future<void> saveMesin(
+  static Future<Map<String, dynamic>> saveMesin(
       int orderId,
-      Map<String, dynamic> data, {bool isFinal = false,}
-      ) async {
-    final token = await AuthService.getToken();
+      Map<String, dynamic> formData, {
+        bool isFinal = false,
+      }) async {
+    final sectionData = formData['mesin'];
+    if (sectionData == null || sectionData is! Map) return {"statusCode": 200};
 
-    final mesin = data["mesin"] ?? {};
+    // Kumpulkan semua request, jalankan BERSAMAAN
+    final futures = <Future>[];
 
-    for (var entry in mesin.entries) {
-      final itemId = entry.key;
+    sectionData.forEach((key, value) {
+      final itemId = int.tryParse(key.toString());
+      if (itemId == null || value is! Map) return;
 
-      // ❗ skip kalau bukan angka (biar gak kirim "Bullhead Depan")
-      if (int.tryParse(itemId) == null) continue;
-
-      final itemData = entry.value;
-
-      final request = http.MultipartRequest(
-        "POST",
-        Uri.parse("$baseUrl/tugas/$orderId/mesin/$itemId"),
+      futures.add(
+        _saveOneItem(
+          orderId: orderId,
+          itemId: itemId,
+          section: 'mesin',
+          kondisi: value['status_kondisi']?.toString() ?? 'Normal',
+          catatan: value['catatan']?.toString() ?? '',
+          fotoUtama: value['foto_utama'] is List ? List<String>.from(value['foto_utama']) : [],
+          fotoKerusakan: value['foto_kerusakan'] is List ? List<String>.from(value['foto_kerusakan']) : [],
+        ),
       );
+    });
 
-      request.headers["Authorization"] = "Bearer $token";
-
-      request.fields["status_kondisi"] = (itemData["status_kondisi"] ?? "normal")
-          .toString()
-          .toLowerCase()
-          .replaceAll(' ', '_');
-      request.fields["catatan"] = itemData["catatan"] ?? "";
-      request.fields["is_draft"] = isFinal ? "0" : "1";
-
-      final fotoUtamaList = itemData["foto_utama"];
-      if (fotoUtamaList is List && fotoUtamaList.isNotEmpty) {
-        for (final path in fotoUtamaList) {
-          if (path != null && path.toString().isNotEmpty) {
-            final file = File(path.toString());
-            if (await file.exists()) {
-              request.files.add(await http.MultipartFile.fromPath(
-                "foto_utama[]",
-                file.path,
-              ));
-            }
-          }
-        }
-      } else {
-        // Fallback: format lama (single foto string)
-        final foto = itemData["foto"];
-        if (foto != null && foto.toString().isNotEmpty) {
-          final file = File(foto.toString());
-          if (await file.exists()) {
-            request.files.add(await http.MultipartFile.fromPath(
-              "foto_utama",
-              file.path,
-            ));
-          }
-        }
-      }
-
-// Foto kerusakan (tidak berubah, tapi tambah null check)
-      final fotoKerusakan = itemData["foto_kerusakan"];
-      if (fotoKerusakan is List) {
-        for (var path in fotoKerusakan) {
-          if (path != null && path.toString().isNotEmpty) {
-            final file = File(path.toString());
-            if (await file.exists()) {
-              request.files.add(await http.MultipartFile.fromPath(
-                "foto_tambahan[]",
-                file.path,
-              ));
-            }
-          }
-        }
-      }
-
-      final res = await http.Response.fromStream(await request.send());
-
-      print("MESIN ITEM ID: $itemId");
-      print("STATUS: ${res.statusCode}");
-
-      if (res.statusCode != 200) {
-        throw Exception("Gagal simpan mesin item $itemId");
-      }
-    }
+    // Semua request jalan bersamaan — total waktu = request TERLAMA, bukan jumlah semua
+    await Future.wait(futures, eagerError: false);
+    return {"statusCode": 200};
   }
 
-  static Future<void> saveKakiKaki(
+  static Future<Map<String, dynamic>> saveKakiKaki(
       int orderId,
-      Map<String, dynamic> data, {bool isFinal = false,}
-      ) async {
-    final token = await AuthService.getToken();
+      Map<String, dynamic> formData, {
+        bool isFinal = false,
+      }) async {
+    final sectionData = formData['kaki_kaki'];
+    if (sectionData == null || sectionData is! Map) return {"statusCode": 200};
 
-    final kaki = data["kaki_kaki"] ?? {};
+    // Kumpulkan semua request, jalankan BERSAMAAN
+    final futures = <Future>[];
 
-    for (var entry in kaki.entries) {
-      final itemId = entry.key;
+    sectionData.forEach((key, value) {
+      final itemId = int.tryParse(key.toString());
+      if (itemId == null || value is! Map) return;
 
-      if (int.tryParse(itemId) == null) continue;
-
-      final itemData = entry.value;
-
-      final request = http.MultipartRequest(
-        "POST",
-        Uri.parse("$baseUrl/tugas/$orderId/kaki-kaki/$itemId"),
+      futures.add(
+        _saveOneItem(
+          orderId: orderId,
+          itemId: itemId,
+          section: 'kaki-kaki',
+          kondisi: value['status_kondisi']?.toString() ?? 'Normal',
+          catatan: value['catatan']?.toString() ?? '',
+          fotoUtama: value['foto_utama'] is List ? List<String>.from(value['foto_utama']) : [],
+          fotoKerusakan: value['foto_kerusakan'] is List ? List<String>.from(value['foto_kerusakan']) : [],
+        ),
       );
+    });
 
-      request.headers["Authorization"] = "Bearer $token";
-
-      request.fields["status_kondisi"] = (itemData["status_kondisi"] ?? "normal")
-          .toString()
-          .toLowerCase()
-          .replaceAll(' ', '_');
-      request.fields["catatan"] = itemData["catatan"] ?? "";
-      request.fields["is_draft"] = isFinal ? "0" : "1";
-
-      final fotoUtamaList = itemData["foto_utama"];
-      if (fotoUtamaList is List && fotoUtamaList.isNotEmpty) {
-        for (final path in fotoUtamaList) {
-          if (path != null && path.toString().isNotEmpty) {
-            final file = File(path.toString());
-            if (await file.exists()) {
-              request.files.add(await http.MultipartFile.fromPath(
-                "foto_utama[]",
-                file.path,
-              ));
-            }
-          }
-        }
-      } else {
-        // Fallback: format lama (single foto string)
-        final foto = itemData["foto"];
-        if (foto != null && foto.toString().isNotEmpty) {
-          final file = File(foto.toString());
-          if (await file.exists()) {
-            request.files.add(await http.MultipartFile.fromPath(
-              "foto_utama",
-              file.path,
-            ));
-          }
-        }
-      }
-
-// Foto kerusakan (tidak berubah, tapi tambah null check)
-      final fotoKerusakan = itemData["foto_kerusakan"];
-      if (fotoKerusakan is List) {
-        for (var path in fotoKerusakan) {
-          if (path != null && path.toString().isNotEmpty) {
-            final file = File(path.toString());
-            if (await file.exists()) {
-              request.files.add(await http.MultipartFile.fromPath(
-                "foto_tambahan[]",
-                file.path,
-              ));
-            }
-          }
-        }
-      }
-
-      final res = await http.Response.fromStream(await request.send());
-
-      print("KAKI KAKI ITEM ID: $itemId");
-      print("STATUS: ${res.statusCode}");
-
-      if (res.statusCode != 200) {
-        throw Exception("Gagal simpan kaki-kaki item $itemId");
-      }
-    }
+    // Semua request jalan bersamaan — total waktu = request TERLAMA, bukan jumlah semua
+    await Future.wait(futures, eagerError: false);
+    return {"statusCode": 200};
   }
 
   static Future<Map<String, dynamic>> tambahPesanan(Map<String, dynamic> payload) async {

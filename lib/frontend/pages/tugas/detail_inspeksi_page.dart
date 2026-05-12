@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../core/base_page.dart';
 import '../../services/api_service.dart';
@@ -8,6 +10,7 @@ import 'step/interior_page.dart';
 import 'step/eksterior_page.dart';
 import 'step/mesin_page.dart';
 import 'step/kaki_kaki_page.dart';
+import 'step/kesimpulan_page.dart';
 
 class DetailInspeksiPage extends StatefulWidget {
   final int orderId;
@@ -25,21 +28,25 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
   Map<String, dynamic> formData = {};
   bool isLoading = true;
 
-  // Errors per step — hanya diisi setelah simpan ditekan atau submit
   final Map<int, Map<String, String>> _stepErrors = {};
-
-  // Step yang sudah pernah di-simpan (bukan sekadar disentuh)
   final Set<int> _touchedSteps = {};
-
-  // ✅ BARU: track field mana saja yang sudah pernah disentuh user (per step)
-  // Format: { stepIndex: { 'field_key', 'field_key2', ... } }
   final Map<int, Set<String>> _touchedFields = {};
 
   static final Map<int, Map<String, dynamic>> _formCache = {};
 
+  Timer? _validationTimer;
+
+  // ── Step 6 = Kesimpulan (baru) ──────────────────────────────────────────
   final List<String> stepTitles = [
-    'Informasi', 'Dokumen', 'Interior', 'Eksterior', 'Mesin', 'Kaki-kaki',
+    'Informasi', 'Dokumen', 'Interior', 'Eksterior', 'Mesin', 'Kaki-kaki', 'Kesimpulan',
   ];
+
+  @override
+  void dispose() {
+    _validationTimer?.cancel();
+    super.dispose();
+  }
+
 
   final List<IconData> stepIcons = [
     Icons.info_outline_rounded,
@@ -48,23 +55,16 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     Icons.directions_car_outlined,
     Icons.settings_outlined,
     Icons.tire_repair_outlined,
+    Icons.assignment_turned_in_outlined,
   ];
 
   int get _orderId => widget.orderId;
 
-  // ✅ DIUBAH: error yang dikirim ke child hanya untuk field yang sudah disentuh,
-  // KECUALI step sudah pernah di-simpan (touchedSteps) → tampilkan semua error
   Map<String, String> get _currentErrors {
     final allErrors = _stepErrors[currentStep] ?? {};
-    if (_touchedSteps.contains(currentStep)) {
-      // Step sudah pernah disimpan → tampilkan semua error
-      return allErrors;
-    }
-    // Step belum disimpan → filter hanya field yang sudah disentuh
+    if (_touchedSteps.contains(currentStep)) return allErrors;
     final touched = _touchedFields[currentStep] ?? {};
-    return Map.fromEntries(
-      allErrors.entries.where((e) => touched.contains(e.key)),
-    );
+    return Map.fromEntries(allErrors.entries.where((e) => touched.contains(e.key)));
   }
 
   @override
@@ -77,7 +77,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     loadInspeksiData();
   }
 
-  // ─── LOAD ─────────────────────────────────────────────────────────────────────
+  // ─── LOAD ────────────────────────────────────────────────────────────────
 
   Future<void> loadInspeksiData() async {
     try {
@@ -199,35 +199,39 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     }
   }
 
-  // ─── FORM CHANGED ─────────────────────────────────────────────────────────────
+  // ─── FORM CHANGED ────────────────────────────────────────────────────────
 
-  // ✅ DIUBAH: deteksi field mana yang berubah, catat sebagai touched,
-  //            lalu validasi hanya field itu (bukan seluruh step)
   void _onFormChanged(Map<String, dynamic> data) {
-    // Cari field mana yang berubah dibanding formData sebelumnya
     final changedKeys = <String>[];
     data.forEach((key, newVal) {
       final oldVal = formData[key];
-      if (oldVal?.toString() != newVal?.toString()) {
-        changedKeys.add(key);
-      }
+      if (oldVal?.toString() != newVal?.toString()) changedKeys.add(key);
     });
 
     formData = data;
     _formCache[_orderId] = Map<String, dynamic>.from(data);
 
-    // Tandai field yang berubah sebagai touched
     _touchedFields[currentStep] ??= {};
     _touchedFields[currentStep]!.addAll(changedKeys);
 
-    // Validasi semua field step ini (untuk hitung error count di tab),
-    // tapi _currentErrors getter yang mengatur mana yang ditampilkan ke user
-    setState(() {
-      _stepErrors[currentStep] = _validateStep(currentStep);
+    // ← Hitung error tapi JANGAN setState
+    // Error bar di bottom hanya perlu update saat user stop ketik
+    // pakai debounce supaya tidak rebuild tiap karakter
+    _debounceValidation();
+  }
+
+  void _debounceValidation() {
+    _validationTimer?.cancel();
+    _validationTimer = Timer(const Duration(milliseconds: 600), () {
+      if (mounted) {
+        setState(() {
+          _stepErrors[currentStep] = _validateStep(currentStep);
+        });
+      }
     });
   }
 
-  // ─── VALIDATION ───────────────────────────────────────────────────────────────
+  // ─── VALIDATION ──────────────────────────────────────────────────────────
 
   Map<String, String> _validateStep(int step) {
     final e = <String, String>{};
@@ -240,8 +244,6 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
         _req(e, 'bahan_bakar',     'Bahan Bakar wajib diisi');
         _req(e, 'warna_mobil',     'Warna Mobil wajib diisi');
         _req(e, 'jarak_tempuh',    'Jarak Tempuh wajib diisi');
-        _req(e, 'kondisi_tabrak',  'Kondisi Tabrak wajib diisi');
-        _req(e, 'kondisi_banjir',  'Kondisi Banjir wajib diisi');
         break;
       case 1:
         _req(e, 'foto_stnk',         'Foto STNK wajib diupload');
@@ -269,6 +271,12 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
       case 3: _validateSection(e, 'eksterior'); break;
       case 4: _validateSection(e, 'mesin');     break;
       case 5: _validateSection(e, 'kaki_kaki'); break;
+    // ── Step 6: Kesimpulan ────────────────────────────────────────────
+      case 6:
+        _req(e, 'kondisi_tabrak', 'Kondisi Tabrak wajib dipilih');
+        _req(e, 'kondisi_banjir', 'Kondisi Banjir wajib dipilih');
+        _req(e, 'catatan_tambahan', 'Kesimpulan wajib diisi');
+        break;
     }
     return e;
   }
@@ -284,27 +292,26 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
       e['${section}_empty'] = 'Belum ada data inspeksi di bagian ini';
       return;
     }
-    int missingKondisi = 0, missingFoto = 0, total = 0;
+
+    int missingKondisi = 0, total = 0;
     data.forEach((key, value) {
       if (int.tryParse(key.toString()) == null) return;
       total++;
       if (value is Map) {
-        final kondisi  = value['status_kondisi']?.toString() ?? '';
-        final fotoList = value['foto_utama'];
-        final fotoStr  = value['foto']?.toString() ?? '';
-        final hasFoto  = (fotoList is List && fotoList.isNotEmpty) || fotoStr.isNotEmpty;
+        final kondisi = value['status_kondisi']?.toString() ?? '';
+        // ← foto TIDAK dicek lagi, opsional
         if (kondisi.isEmpty) missingKondisi++;
-        if (!hasFoto) missingFoto++;
       } else {
         missingKondisi++;
-        missingFoto++;
       }
     });
+
     if (total == 0) {
       e['${section}_empty'] = 'Belum ada item yang diperiksa';
     } else {
-      if (missingKondisi > 0) e['${section}_kondisi'] = '$missingKondisi item belum dipilih kondisinya';
-      if (missingFoto > 0)    e['${section}_foto']    = '$missingFoto item belum dilengkapi foto';
+      if (missingKondisi > 0) {
+        e['${section}_kondisi'] = '$missingKondisi item belum dipilih kondisinya';
+      }
     }
   }
 
@@ -317,10 +324,9 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     return result;
   }
 
-  // ─── SAVE / SUBMIT ────────────────────────────────────────────────────────────
+  // ─── SAVE / SUBMIT ────────────────────────────────────────────────────────
 
   void saveDraft() async {
-    // ✅ Saat simpan ditekan → mark step sebagai touched → tampilkan semua error
     _touchedSteps.add(currentStep);
     final errors = _validateStep(currentStep);
     setState(() => _stepErrors[currentStep] = errors);
@@ -340,6 +346,8 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
         case 3: await ApiService.saveEksterior(id, formData, isFinal: false); break;
         case 4: await ApiService.saveMesin(id, formData, isFinal: false); break;
         case 5: await ApiService.saveKakiKaki(id, formData, isFinal: false); break;
+      // ── Step 6: Simpan kondisi tabrak/banjir + kesimpulan ke endpoint informasi ──
+        case 6: await ApiService.saveKesimpulan(id, formData); break;
       }
       if (inspectionStatus == 'draft') setState(() => inspectionStatus = 'progress');
       _hideLoading();
@@ -354,7 +362,6 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
   void submitFinal() async {
     final allErrors = _validateAll();
     if (allErrors.isNotEmpty) {
-      // Mark semua step sebagai touched supaya tab indicator dan semua error muncul
       setState(() {
         allErrors.forEach((step, errs) {
           _touchedSteps.add(step);
@@ -392,21 +399,12 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     }
   }
 
-  // ─── BUILD ────────────────────────────────────────────────────────────────────
+  // ─── BUILD ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final namaMobil  = widget.dataTugas['nama_mobil'] ?? 'Inspeksi';
+    final namaMobil = widget.dataTugas['nama_mobil'] ?? 'Inspeksi';
     final isLastStep = currentStep == stepTitles.length - 1;
-
-    final steps = [
-      InformasiMobilPage(formData: formData, onChanged: _onFormChanged, validationErrors: _currentErrors),
-      DokumenPage(formData: formData, onChanged: _onFormChanged, validationErrors: _currentErrors),
-      InteriorPage(formData: formData, onChanged: _onFormChanged),
-      EksteriorPage(formData: formData, onChanged: _onFormChanged),
-      MesinPage(formData: formData, onChanged: _onFormChanged),
-      KakiKakiPage(formData: formData, onChanged: _onFormChanged),
-    ];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F4F7),
@@ -415,14 +413,28 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
         children: [
           _buildTabBar(),
           _buildProgressStrip(),
-          Expanded(child: steps[currentStep]),
+          Expanded(
+            // ← IndexedStack: semua page tetap hidup, cuma visibility yang berubah
+            child: IndexedStack(
+              index: currentStep,
+              children: [
+                InformasiMobilPage(formData: formData, onChanged: _onFormChanged, validationErrors: _currentErrors),
+                DokumenPage(formData: formData, onChanged: _onFormChanged, validationErrors: _currentErrors),
+                InteriorPage(formData: formData, onChanged: _onFormChanged),
+                EksteriorPage(formData: formData, onChanged: _onFormChanged),
+                MesinPage(formData: formData, onChanged: _onFormChanged),
+                KakiKakiPage(formData: formData, onChanged: _onFormChanged),
+                KesimpulanPage(formData: formData, onChanged: _onFormChanged, validationErrors: _currentErrors),
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: _buildBottom(isLastStep),
     );
   }
 
-  // ── AppBar ───────────────────────────────────────────────────────────────────
+  // ── AppBar ───────────────────────────────────────────────────────────────
 
   PreferredSizeWidget _buildAppBar(String title) {
     return AppBar(
@@ -462,7 +474,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     );
   }
 
-  // ── Tab Bar ──────────────────────────────────────────────────────────────────
+  // ── Tab Bar ──────────────────────────────────────────────────────────────
 
   Widget _buildTabBar() {
     return Container(
@@ -514,10 +526,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
                     const SizedBox(width: 5),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade500,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                      decoration: BoxDecoration(color: Colors.red.shade500, borderRadius: BorderRadius.circular(10)),
                       child: Text('${errors.length}',
                           style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700)),
                     ),
@@ -531,7 +540,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     );
   }
 
-  // ── Progress Strip ───────────────────────────────────────────────────────────
+  // ── Progress Strip ───────────────────────────────────────────────────────
 
   Widget _buildProgressStrip() {
     int done = 0;
@@ -568,13 +577,12 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     );
   }
 
-  // ── Bottom Bar ───────────────────────────────────────────────────────────────
+  // ── Bottom Bar ───────────────────────────────────────────────────────────
 
   Widget _buildBottom(bool isLastStep) {
-    final isDone     = inspectionStatus == 'done';
-    // ✅ Bottom error bar hanya muncul kalau step sudah di-simpan (touched)
-    final errors     = _stepErrors[currentStep] ?? {};
-    final hasErrors  = _touchedSteps.contains(currentStep) && errors.isNotEmpty;
+    final isDone    = inspectionStatus == 'done';
+    final errors    = _stepErrors[currentStep] ?? {};
+    final hasErrors = _touchedSteps.contains(currentStep) && errors.isNotEmpty;
 
     return Container(
       decoration: BoxDecoration(
@@ -609,21 +617,22 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
               ),
             ),
 
+          // ── Step terakhir (Kesimpulan): tampilkan tombol Simpan + Selesaikan ──
           if (isLastStep)
             Row(children: [
               Expanded(
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: isDone ? Colors.grey.shade300 : AppColors.primary),
+                    backgroundColor: isDone ? Colors.grey.shade300 : AppColors.primary,
+                    side: BorderSide.none,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: isDone ? null : saveDraft,
-                  icon: Icon(Icons.save_outlined, size: 15,
-                      color: isDone ? Colors.grey : AppColors.primary),
+                  icon: Icon(Icons.save_outlined, size: 15, color: Colors.white),
                   label: Text('Simpan', style: TextStyle(
                       fontWeight: FontWeight.w700, fontSize: 13,
-                      color: isDone ? Colors.grey : AppColors.primary)),
+                      color: Colors.white)),
                 ),
               ),
               const SizedBox(width: 10),
@@ -645,6 +654,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
               ),
             ])
           else
+          // ── Step lainnya: hanya tombol Simpan ───────────────────────
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -670,7 +680,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     );
   }
 
-  // ─── SHEETS & DIALOGS (tidak ada perubahan) ───────────────────────────────────
+  // ─── SHEETS & DIALOGS ─────────────────────────────────────────────────────
 
   void _showValidationSheet(List<String> errors, {required String stepTitle}) {
     showModalBottomSheet(
@@ -869,7 +879,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
                       elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () { Navigator.pop(context); setState(() => currentStep = allErrors.keys.first); },
-                    child: const Text('Ke Bagian Error',
+                    child: const Text('Masuk ke Section',
                         style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
                   ),
                 ),
@@ -974,32 +984,27 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     );
   }
 
-  // ─── UTILITIES ────────────────────────────────────────────────────────────────
+  // ─── UTILITIES ────────────────────────────────────────────────────────────
 
   Widget _handle() => Container(
     width: 40, height: 4,
     decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
   );
 
-  void _showLoading() {
-    showDialog(
+// ── Modern Loading Bottom Sheet ──────────────────────────────────────────
+  void _showLoading({String stepLabel = 'Mengirim ke server'}) {
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => Center(
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            CircularProgressIndicator(color: AppColors.primary),
-            const SizedBox(height: 12),
-            Text('Menyimpan...', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-          ]),
-        ),
-      ),
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _LoadingSheet(stepLabel: stepLabel),
     );
   }
 
-  void _hideLoading() { if (mounted) Navigator.pop(context); }
+  void _hideLoading() {
+    if (mounted) Navigator.pop(context);
+  }
 
   void _showSuccessToast(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1053,35 +1058,218 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
   }
 
   void _showErrorDialog(String msg) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.error_outline_rounded, size: 40, color: Colors.red.shade400),
-            const SizedBox(height: 12),
-            const Text('Terjadi Kesalahan',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            Text(msg, textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // handle
+          Container(width: 36, height: 4,
+              decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 24),
+
+          // icon
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(16)),
+            child: Icon(Icons.error_outline_rounded, size: 28, color: Colors.red.shade500),
+          ),
+          const SizedBox(height: 16),
+
+          const Text('Gagal Menyimpan',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+          const SizedBox(height: 6),
+          Text(msg,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade400, height: 1.5)),
+          const SizedBox(height: 24),
+
+          // error card
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.red.shade100),
+            ),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.info_outline_rounded, size: 15, color: Colors.red.shade400),
+              const SizedBox(width: 10),
+              Expanded(child: Text(msg,
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF374151), height: 1.5))),
+            ]),
+          ),
+          const SizedBox(height: 20),
+
+          Row(children: [
+            Expanded(
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  side: BorderSide(color: Colors.grey.shade200),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Tutup'),
+                child: const Text('Tutup', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade600,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Perbaiki Sekarang',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
               ),
             ),
           ]),
-        ),
+        ]),
       ),
     );
   }
 }
+
+class _LoadingSheet extends StatefulWidget {
+  final String stepLabel;
+  const _LoadingSheet({required this.stepLabel});
+
+  @override
+  State<_LoadingSheet> createState() => _LoadingSheetState();
+}
+
+class _LoadingSheetState extends State<_LoadingSheet>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    _slide = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack);
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+          .animate(_slide),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // handle pill
+            Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 24),
+
+            // spinner
+            SizedBox(
+              width: 52, height: 52,
+              child: CircularProgressIndicator(
+                strokeWidth: 3.5,
+                backgroundColor: Colors.grey.shade100,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                strokeCap: StrokeCap.round,
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // title
+            const Text(
+              'Menyimpan data...',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Harap tunggu sebentar',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+            ),
+            const SizedBox(height: 24),
+
+            // step indicators
+            _buildStepRow(Icons.check_circle_rounded, 'Validasi data form', _StepState.done),
+            _buildStepRow(Icons.autorenew_rounded,    widget.stepLabel,     _StepState.active),
+            _buildStepRow(Icons.cloud_done_outlined,  'Konfirmasi tersimpan', _StepState.pending),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepRow(IconData icon, String label, _StepState state) {
+    final colors = {
+      _StepState.done:    [const Color(0xFFF0FDF4), const Color(0xFF16A34A)],
+      _StepState.active:  [const Color(0xFFEFF6FF), AppColors.primary],
+      _StepState.pending: [const Color(0xFFF9FAFB), Colors.grey.shade400],
+    }[state]!;
+
+    final badgeColors = {
+      _StepState.done:    [const Color(0xFFDCFCE7), const Color(0xFF15803D)],
+      _StepState.active:  [const Color(0xFFDBEAFE), const Color(0xFF1D4ED8)],
+      _StepState.pending: [Colors.grey.shade100, Colors.grey.shade400],
+    }[state]!;
+
+    final badgeLabels = {
+      _StepState.done:    'Selesai',
+      _StepState.active:  'Proses',
+      _StepState.pending: 'Menunggu',
+    }[state]!;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey.shade100, width: .5)),
+      ),
+      child: Row(children: [
+        Container(
+          width: 34, height: 34,
+          decoration: BoxDecoration(color: colors[0], borderRadius: BorderRadius.circular(9)),
+          child: Icon(icon, size: 16, color: colors[1] as Color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF374151)))),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+          decoration: BoxDecoration(
+              color: badgeColors[0] as Color,
+              borderRadius: BorderRadius.circular(20)),
+          child: Text(badgeLabels,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: badgeColors[1] as Color)),
+        ),
+      ]),
+    );
+  }
+}
+
+enum _StepState { done, active, pending }

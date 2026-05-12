@@ -182,46 +182,8 @@ class _InformasiMobilPageState extends State<InformasiMobilPage> {
                   inputFormatters: [_ThousandSeparatorFormatter()],
                 ),
 
-                // ── Kondisi Tabrak ────────────────────────────────────────
-                _buildConditionSelector(
-                  label: 'Kondisi Tabrak',
-                  key: 'kondisi_tabrak',
-                  icon: Icons.car_crash_outlined,
-                  options: const ['Bebas Tabrak', 'Tabrak Ringan', 'Tabrak Berat'],
-                  activeColors: const [
-                    Color(0xFF4CAF50),
-                    Color(0xFFFFA726),
-                    Color(0xFFF44336),
-                  ],
-                  icons: const [
-                    Icons.check_circle_outline,
-                    Icons.warning_amber_outlined,
-                    Icons.dangerous_outlined,
-                  ],
-                ),
-
-                // ── Kondisi Banjir ────────────────────────────────────────
-                _buildConditionSelector(
-                  label: 'Kondisi Banjir',
-                  key: 'kondisi_banjir',
-                  icon: Icons.water_outlined,
-                  options: const ['Bebas Banjir', 'Banjir Ringan', 'Banjir Berat'],
-                  activeColors: const [
-                    Color(0xFF4CAF50),
-                    Color(0xFFFFA726),
-                    Color(0xFFF44336),
-                  ],
-                  icons: const [
-                    Icons.check_circle_outline,
-                    Icons.water_damage_outlined,
-                    Icons.flood_outlined,
-                  ],
-                ),
-
-                const SizedBox(height: 4),
-
-                // ── Kesimpulan (formerly Catatan Tambahan) ────────────────
-                _buildTextArea('Kesimpulan', 'catatan_tambahan'),
+                // kondisi_tabrak, kondisi_banjir, dan kesimpulan
+                // dipindahkan ke KesimpulanPage (step terakhir)
               ],
             ),
           ),

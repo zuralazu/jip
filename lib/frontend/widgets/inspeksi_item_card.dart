@@ -1,7 +1,13 @@
+// inspeksi_item_card.dart — FULL REPLACE
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:gal/gal.dart';
+import '../../main.dart';
 import '../utils/colors.dart';
 import '../utils/image_utils.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:camera/camera.dart'; // tambah ke pubspec: camera: ^0.10.5+9
 import 'dart:io';
 
 class InspeksiItemCard extends StatefulWidget {
@@ -26,11 +32,18 @@ class InspeksiItemCard extends StatefulWidget {
 
 class _InspeksiItemCardState extends State<InspeksiItemCard> {
   List<dynamic> fotoUtama = [];
-  TextEditingController catatanController = TextEditingController();
+  late TextEditingController catatanController;
   String statusKondisi = 'Normal';
   bool showKerusakan = false;
   List<File> fotoKerusakan = [];
   final ImagePicker _picker = ImagePicker();
+
+  // ── Anti scroll-jump: kalau user lagi fokus di field, skip rebuild ──
+  bool _isFocused = false;
+  final FocusNode _focusNode = FocusNode();
+
+  // ── Track apakah sudah di-init supaya didUpdateWidget tidak override ──
+  bool _initialized = false;
 
   final List<String> kondisiOptions = ['Normal', 'Rusak', 'Perlu Perbaikan'];
 
@@ -46,10 +59,11 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
   @override
   void initState() {
     super.initState();
+    catatanController = TextEditingController();
+    _focusNode.addListener(() => _isFocused = _focusNode.hasFocus);
     _loadFromFormData();
+    _initialized = true;
 
-    // ✅ FIX Masalah 2: Kalau item ini belum punya data sama sekali di formData,
-    // simpan default "Normal" supaya validasi tidak anggap kondisi kosong
     if (itemData.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _saveDefault();
@@ -57,21 +71,21 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
     }
   }
 
-  // ✅ FIX Masalah 1: Load data dipisah ke method sendiri
   void _loadFromFormData() {
     final data = itemData;
-
-    // Ambil status_kondisi, default "Normal" kalau kosong
     final rawKondisi = data["status_kondisi"]?.toString() ?? '';
     statusKondisi = rawKondisi.isNotEmpty ? rawKondisi : 'Normal';
-
     showKerusakan = data["showKerusakan"] == true;
-    catatanController.text = data["catatan"]?.toString() ?? '';
+
+    // Jangan override catatan kalau user lagi ngetik
+    if (!_isFocused) {
+      catatanController.text = data["catatan"]?.toString() ?? '';
+    }
+
     fotoUtama = _getFotoUtamaList();
     fotoKerusakan = _getKerusakanImages();
   }
 
-  // ✅ FIX Masalah 2: Simpan default tanpa menunggu user klik kondisi
   void _saveDefault() {
     widget.onChanged?.call({
       "status_kondisi": "Normal",
@@ -87,33 +101,48 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
   void didUpdateWidget(covariant InspeksiItemCard oldWidget) {
     super.didUpdateWidget(oldWidget);
 
+    // ── KUNCI: kalau user lagi ngetik/fokus, SKIP rebuild sama sekali ──
+    if (_isFocused) return;
+
+    // Hanya sync kalau foto dari server berubah (bukan lokal)
     final newData = itemData;
     final newFotoUtama = newData["foto_utama"];
-
-    int countFromFormData = 0;
+    final serverUrls = <String>[];
     if (newFotoUtama is List) {
-      countFromFormData = newFotoUtama
-          .where((e) => e != null && e.toString().isNotEmpty)
-          .length;
+      for (final e in newFotoUtama) {
+        final s = e?.toString() ?? '';
+        if (s.startsWith('http')) serverUrls.add(s);
+      }
     }
 
-    if (countFromFormData != fotoUtama.length) {
-      setState(() => _loadFromFormData());
-    }
+    final currentUrls = fotoUtama.whereType<String>().toList();
+    final urlsChanged = serverUrls.length != currentUrls.length ||
+        !serverUrls.every((u) => currentUrls.contains(u));
 
     final newKondisi = newData["status_kondisi"]?.toString() ?? 'Normal';
-    if (newKondisi != statusKondisi && newKondisi.isNotEmpty) {
-      setState(() => statusKondisi = newKondisi);
+    final kondisiChanged = newKondisi.isNotEmpty && newKondisi != statusKondisi;
+
+    if (urlsChanged || kondisiChanged) {
+      // Hanya rebuild hal yang berubah, jangan reset semua state
+      setState(() {
+        if (kondisiChanged) statusKondisi = newKondisi;
+        if (urlsChanged) {
+          // Merge: pertahankan File lokal, update URL server
+          final localFiles = fotoUtama.whereType<File>().toList();
+          fotoUtama = [...serverUrls, ...localFiles];
+        }
+      });
     }
   }
 
   @override
   void dispose() {
     catatanController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
-  // ── DATA HELPERS ─────────────────────────────────────────────────────────────
+  // ── DATA HELPERS ─────────────────────────────────────────────────────────
 
   Map<String, dynamic> get itemData {
     if (widget.formData == null || widget.fieldKey == null) return {};
@@ -134,15 +163,14 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
         final path = e?.toString() ?? '';
         if (path.isEmpty) continue;
         if (path.startsWith('http')) {
-          result.add(path); // URL dari server
+          result.add(path);
         } else {
           final f = File(path);
-          if (f.existsSync()) result.add(f); // path lokal
+          if (f.existsSync()) result.add(f);
         }
       }
     }
 
-    // Cek juga foto_utama_urls (URL yang sudah disimpan sebelumnya)
     final savedUrls = data["foto_utama_urls"];
     if (result.isEmpty && savedUrls is List) {
       for (final url in savedUrls) {
@@ -152,7 +180,6 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
       }
     }
 
-    // Fallback format lama: single string
     if (result.isEmpty) {
       final foto = data["foto"]?.toString() ?? '';
       if (foto.isNotEmpty) {
@@ -180,27 +207,20 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
   }
 
   void saveAll() {
-    final data = {
+    widget.onChanged?.call({
       "status_kondisi": statusKondisi,
       "showKerusakan": showKerusakan,
       "catatan": catatanController.text,
-      "foto_utama": fotoUtama
-          .whereType<File>()
-          .map((e) => e.path)
-          .toList(),
+      "foto_utama": fotoUtama.whereType<File>().map((e) => e.path).toList(),
       "foto": fotoUtama.whereType<File>().isNotEmpty
           ? fotoUtama.whereType<File>().first.path
           : null,
       "foto_kerusakan": fotoKerusakan.map((e) => e.path).toList(),
-      // Simpan URL server supaya tetap bisa ditampilkan
-      "foto_utama_urls": fotoUtama
-          .whereType<String>()
-          .toList(),
-    };
-    widget.onChanged?.call(data);
+      "foto_utama_urls": fotoUtama.whereType<String>().toList(),
+    });
   }
 
-  // ─── BUILD ───────────────────────────────────────────────────────────────────
+  // ── BUILD ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +241,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
-          // ── HEADER: nama + dropdown kondisi ──
+          // ── HEADER ──
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
             child: Row(
@@ -258,11 +278,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          size: 14,
-                          color: _kondisiColor,
-                        ),
+                        Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: _kondisiColor),
                       ],
                     ),
                   ),
@@ -271,26 +287,41 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
             ),
           ),
 
-          // ── MULTI FOTO UTAMA ──
+          // ── FOTO UTAMA (Opsional) ──
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Foto Kondisi',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textGrey,
-                  ),
+                Row(
+                  children: [
+                    const Text(
+                      'Foto Kondisi',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textGrey,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'Opsional',
+                        style: TextStyle(fontSize: 9, color: Colors.grey.shade400, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    // Ganti bagian ...fotoUtama.asMap().entries.map((entry) { ... }):
                     ...fotoUtama.asMap().entries.map((entry) {
                       final idx = entry.key;
                       final item = entry.value;
@@ -321,11 +352,11 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                       );
                     }),
 
-                    // Tombol tambah foto
+                    // Tombol tambah foto — dengan flash support
                     GestureDetector(
                       onTap: () => _pickFotoUtama(context),
                       child: Container(
-                        width: 600,
+                        width: 80,
                         height: 80,
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8F8F8),
@@ -418,11 +449,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                 children: [
                   const Text(
                     'Foto Kerusakan',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textGrey,
-                    ),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textGrey),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -436,12 +463,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.file(
-                                file,
-                                width: 90,
-                                height: 90,
-                                fit: BoxFit.cover,
-                              ),
+                              child: Image.file(file, width: 90, height: 90, fit: BoxFit.cover),
                             ),
                             Positioned(
                               top: 0,
@@ -453,10 +475,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
+                                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                                   child: const Icon(Icons.close, size: 12, color: Colors.white),
                                 ),
                               ),
@@ -464,33 +483,24 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
                           ],
                         );
                       }),
-
                       GestureDetector(
                         onTap: () => _pickFotoKerusakan(context),
                         child: Container(
-                          width: 600,
-                          height: 70,
+                          width: 80,
+                          height: 80,
                           decoration: BoxDecoration(
                             color: const Color(0xFFF8F8F8),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: Colors.red.withOpacity(0.4),
-                              width: 1.5,
-                            ),
+                            border: Border.all(color: Colors.red.withOpacity(0.4), width: 1.5),
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.add_a_photo_rounded,
-                                  color: Colors.red.withOpacity(0.6), size: 18),
+                              Icon(Icons.add_a_photo_rounded, color: Colors.red.withOpacity(0.6), size: 18),
                               const SizedBox(height: 4),
                               Text(
                                 'Tambah',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: Colors.red.withOpacity(0.7),
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                style: TextStyle(fontSize: 9, color: Colors.red.withOpacity(0.7), fontWeight: FontWeight.w500),
                               ),
                             ],
                           ),
@@ -502,11 +512,13 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
               ),
             ),
 
-          // ── CATATAN ──
+          // ── CATATAN — pakai FocusNode supaya tidak trigger rebuild ──
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
             child: TextField(
               controller: catatanController,
+              focusNode: _focusNode,
+              // ← onChanged hanya simpan data, TIDAK setState
               onChanged: (_) => saveAll(),
               style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
@@ -535,21 +547,19 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
     );
   }
 
-  // ── PICKER FOTO UTAMA ────────────────────────────────────────────────────────
+  // ── PICKER DENGAN FLASH ───────────────────────────────────────────────────
+
   void _pickFotoUtama(BuildContext context) {
     _showImagePickerSheet(
       context,
       onCamera: () async {
-        final XFile? image = await _picker.pickImage(
-          source: ImageSource.camera,
-          imageQuality: 80,
+        // Buka kamera custom dengan flash toggle
+        final file = await Navigator.of(context).push<File>(
+          MaterialPageRoute(builder: (_) => const _CameraWithFlash()),
         );
-        if (image != null) {
+        if (file != null) {
           final compressed = await ImageUtils.compressImage(
-            File(image.path),
-            quality: 70,
-            maxWidth: 1280,
-            maxHeight: 1280,
+            file, quality: 70, maxWidth: 1280, maxHeight: 1280,
           );
           setState(() => fotoUtama.add(compressed));
           saveAll();
@@ -560,10 +570,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
         if (images.isNotEmpty) {
           for (final img in images) {
             final compressed = await ImageUtils.compressImage(
-              File(img.path),
-              quality: 70,
-              maxWidth: 1280,
-              maxHeight: 1280,
+              File(img.path), quality: 70, maxWidth: 1280, maxHeight: 1280,
             );
             fotoUtama.add(compressed);
           }
@@ -574,21 +581,16 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
     );
   }
 
-  // ── PICKER FOTO KERUSAKAN ────────────────────────────────────────────────────
   void _pickFotoKerusakan(BuildContext context) {
     _showImagePickerSheet(
       context,
       onCamera: () async {
-        final XFile? image = await _picker.pickImage(
-          source: ImageSource.camera,
-          imageQuality: 80,
+        final file = await Navigator.of(context).push<File>(
+          MaterialPageRoute(builder: (_) => const _CameraWithFlash()),
         );
-        if (image != null) {
+        if (file != null) {
           final compressed = await ImageUtils.compressImage(
-            File(image.path),
-            quality: 70,
-            maxWidth: 1280,
-            maxHeight: 1280,
+            file, quality: 70, maxWidth: 1280, maxHeight: 1280,
           );
           setState(() => fotoKerusakan.add(compressed));
           saveAll();
@@ -599,10 +601,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
         if (images.isNotEmpty) {
           for (final img in images) {
             final compressed = await ImageUtils.compressImage(
-              File(img.path),
-              quality: 70,
-              maxWidth: 1280,
-              maxHeight: 1280,
+              File(img.path), quality: 70, maxWidth: 1280, maxHeight: 1280,
             );
             fotoKerusakan.add(compressed);
           }
@@ -624,43 +623,59 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => SafeArea(
-        child: Wrap(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-              child: Center(
-                child: Container(
-                  width: 36, height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36, height: 4,
+                margin: const EdgeInsets.only(bottom: 16, top: 8),
+                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_rounded),
-              title: const Text('Ambil dari Kamera'),
-              onTap: () { Navigator.pop(context); onCamera(); },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_rounded),
-              title: const Text('Pilih dari Galeri (bisa banyak)'),
-              onTap: () { Navigator.pop(context); onGallery(); },
-            ),
-          ],
+              const Text('Tambah Foto', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _SheetOption(
+                      icon: Icons.camera_alt_outlined,
+                      label: 'Kamera',
+                      sublabel: 'Dengan flash',
+                      color: AppColors.primary,
+                      onTap: () { Navigator.pop(context); onCamera(); },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _SheetOption(
+                      icon: Icons.photo_library_outlined,
+                      label: 'Galeri',
+                      sublabel: 'Pilih banyak',
+                      color: const Color(0xFF8E24AA),
+                      onTap: () { Navigator.pop(context); onGallery(); },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Batal', style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // ── KONDISI PICKER ───────────────────────────────────────────────────────────
+  // ── KONDISI PICKER ───────────────────────────────────────────────────────
+
   void _showKondisiPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         child: Column(
@@ -670,28 +685,16 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
             Center(
               child: Container(
                 width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Pilih Kondisi',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textDark,
-              ),
-            ),
+            const Text('Pilih Kondisi', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textDark)),
             const SizedBox(height: 12),
             ...kondisiOptions.map((opt) => ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(
-                statusKondisi == opt
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_off,
+                statusKondisi == opt ? Icons.radio_button_checked : Icons.radio_button_off,
                 color: statusKondisi == opt ? AppColors.primary : AppColors.textGrey,
                 size: 20,
               ),
@@ -712,6 +715,265 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Helper widget opsi sheet ─────────────────────────────────────────────────
+class _SheetOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String sublabel;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _SheetOption({required this.icon, required this.label, required this.sublabel, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 48, height: 48,
+              decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 10),
+            Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
+            const SizedBox(height: 2),
+            Text(sublabel, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Kamera custom dengan flash toggle ────────────────────────────────────────
+class _CameraWithFlash extends StatefulWidget {
+  const _CameraWithFlash();
+
+  @override
+  State<_CameraWithFlash> createState() => _CameraWithFlashState();
+}
+
+class _CameraWithFlashState extends State<_CameraWithFlash> {
+  CameraController? _controller;
+  bool _isReady = false;
+  FlashMode _flashMode = FlashMode.auto;
+  bool _isTakingPhoto = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initCamera();
+  }
+
+  Future<void> _initCamera() async {
+    if (globalCameras.isEmpty) {
+      if (mounted) Navigator.pop(context);
+      return;
+    }
+
+    // ← debug dulu
+    for (int i = 0; i < globalCameras.length; i++) {
+      debugPrint('CAMERA $i: ${globalCameras[i].name} — ${globalCameras[i].lensDirection}');
+    }
+
+    // Pastikan ambil kamera BELAKANG
+    final backCamera = globalCameras.firstWhere(
+          (c) => c.lensDirection == CameraLensDirection.back,
+      orElse: () => globalCameras.first,
+    );
+
+    _controller = CameraController(
+      backCamera,  // ← eksplisit pilih belakang
+      ResolutionPreset.high,
+      enableAudio: false,
+    );
+
+    try {
+      await _controller!.initialize();
+      await _controller!.setFlashMode(FlashMode.off); // ← default OFF, bukan auto
+      setState(() {
+        _flashMode = FlashMode.off;
+        _isReady = true;
+      });
+    } catch (e) {
+      debugPrint('Camera init error: $e');
+      if (mounted) Navigator.pop(context);
+    }
+  }
+
+  Future<void> _cycleFlash() async {
+    final modes = [FlashMode.auto, FlashMode.always, FlashMode.off, FlashMode.torch];
+    final next = modes[(modes.indexOf(_flashMode) + 1) % modes.length];
+    await _controller?.setFlashMode(next);
+    setState(() => _flashMode = next);
+  }
+
+  IconData get _flashIcon {
+    switch (_flashMode) {
+      case FlashMode.auto:   return Icons.flash_auto_rounded;
+      case FlashMode.always: return Icons.flash_on_rounded;
+      case FlashMode.off:    return Icons.flash_off_rounded;
+      case FlashMode.torch:  return Icons.flashlight_on_rounded;
+      default:               return Icons.flash_auto_rounded;
+    }
+  }
+
+  String get _flashLabel {
+    switch (_flashMode) {
+      case FlashMode.auto:   return 'Auto';
+      case FlashMode.always: return 'On';
+      case FlashMode.off:    return 'Off';
+      case FlashMode.torch:  return 'Torch';
+      default:               return 'Auto';
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    if (_controller == null || !_isReady || _isTakingPhoto) return;
+    setState(() => _isTakingPhoto = true);
+
+    try {
+      final XFile photo = await _controller!.takePicture();
+
+      // ← simpan ke galeri
+      try {
+        await Gal.putImage(photo.path, album: 'JIM');
+      } catch (e) {
+        debugPrint('Gagal simpan ke galeri: $e');
+      }
+
+      if (mounted) Navigator.pop(context, File(photo.path));
+    } catch (e) {
+      debugPrint('Gagal ambil foto: $e');
+      setState(() => _isTakingPhoto = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: _isReady
+          ? Stack(
+        fit: StackFit.expand,
+        children: [
+          // Preview
+          CameraPreview(_controller!),
+
+          // Top bar
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: Container(
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + 8,
+                left: 8, right: 8, bottom: 12,
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black.withOpacity(0.6), Colors.transparent],
+                ),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 26),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const Spacer(),
+                  // Flash toggle
+                  GestureDetector(
+                    onTap: _cycleFlash,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _flashMode == FlashMode.off
+                            ? Colors.white.withOpacity(0.15)
+                            : Colors.amber.withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(_flashIcon, color: _flashMode == FlashMode.off ? Colors.white : Colors.black, size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            _flashLabel,
+                            style: TextStyle(
+                              color: _flashMode == FlashMode.off ? Colors.white : Colors.black,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              ),
+            ),
+          ),
+
+          // Bottom shutter
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: Container(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).padding.bottom + 24,
+                top: 20,
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Colors.black.withOpacity(0.6), Colors.transparent],
+                ),
+              ),
+              child: Center(
+                child: GestureDetector(
+                  onTap: _takePhoto,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 100),
+                    width: _isTakingPhoto ? 64 : 72,
+                    height: _isTakingPhoto ? 64 : 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                      border: Border.all(color: Colors.white.withOpacity(0.5), width: 3),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8)],
+                    ),
+                    child: _isTakingPhoto
+                        ? const Center(child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                        : null,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      )
+          : const Center(child: CircularProgressIndicator(color: Colors.white)),
     );
   }
 }
