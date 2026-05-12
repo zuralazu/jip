@@ -147,7 +147,6 @@ class _MesinPageState extends State<MesinPage> {
 
     widget.formData['mesin'] = updated; // ganti sesuai section: 'eksterior', 'mesin', 'kaki_kaki'
     widget.onChanged(widget.formData);
-    setState(() {});
   }
 
   @override

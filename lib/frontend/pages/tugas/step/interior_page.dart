@@ -149,7 +149,6 @@ class _InteriorPageState extends State<InteriorPage> {
 
     widget.formData['interior'] = updated; // ganti sesuai section: 'eksterior', 'mesin', 'kaki_kaki'
     widget.onChanged(widget.formData);
-    setState(() {});
   }
 
   @override

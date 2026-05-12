@@ -136,7 +136,6 @@ class _KakiKakiPageState extends State<KakiKakiPage> {
 
     widget.formData['kaki_kaki'] = updated; // ganti sesuai section: 'eksterior', 'mesin', 'kaki_kaki'
     widget.onChanged(widget.formData);
-    setState(() {});
   }
 
   @override

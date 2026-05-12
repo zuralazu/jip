@@ -156,7 +156,6 @@ class _EksteriorPageState extends State<EksteriorPage> {
 
     widget.formData['eksterior'] = updated;
     widget.onChanged(widget.formData);
-    setState(() {});
   }
 
   @override
