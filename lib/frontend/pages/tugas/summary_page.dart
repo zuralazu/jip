@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../utils/colors.dart';
 import '../../services/api_service.dart';
 import 'package:open_file/open_file.dart';
@@ -74,7 +73,6 @@ class _SummaryPageState extends State<SummaryPage> {
     }
   }
 
-  // ─── REVISI 1: Download PDF — otomatis simpan + tombol buka ─────────────────
   Future<void> _downloadPdf() async {
     setState(() => isDownloading = true);
 
@@ -84,12 +82,10 @@ class _SummaryPageState extends State<SummaryPage> {
           ?? 'Laporan';
       final namaFile = 'Laporan_Inspeksi_$namaKendaraan';
 
-      // ✅ Langsung download dan simpan otomatis
       final savedPath = await ApiService.downloadLaporanPdf(widget.orderId, namaFile);
 
       if (!mounted) return;
 
-      // ✅ Tampilkan snackbar sukses + tombol BUKA
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -101,16 +97,11 @@ class _SummaryPageState extends State<SummaryPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'PDF berhasil disimpan!',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                  ),
-                  Text(
-                    savedPath.split('/').last,
-                    style: const TextStyle(fontSize: 11, color: Colors.white70),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  const Text('PDF berhasil disimpan!',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  Text(savedPath.split('/').last,
+                      style: const TextStyle(fontSize: 11, color: Colors.white70),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
@@ -118,16 +109,11 @@ class _SummaryPageState extends State<SummaryPage> {
           backgroundColor: const Color(0xFF1A9E5C),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 6),
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(10)),
-          ),
-          // ✅ Tombol BUKA via share sheet
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
           action: SnackBarAction(
             label: 'BUKA',
             textColor: Colors.yellow,
-            onPressed: () async {
-              await OpenFile.open(savedPath);
-            },
+            onPressed: () async => await OpenFile.open(savedPath),
           ),
         ),
       );
@@ -142,9 +128,7 @@ class _SummaryPageState extends State<SummaryPage> {
           ]),
           backgroundColor: Colors.red.shade600,
           behavior: SnackBarBehavior.floating,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(10)),
-          ),
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
         ),
       );
     } finally {
