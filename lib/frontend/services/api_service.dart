@@ -963,26 +963,35 @@ class ApiService {
     final token = await AuthService.getToken();
     final url = '$baseUrl/laporan/$orderId/pdf?token=$token';
 
-    // 1. Download PDF via HTTP
+    // 1. Download PDF
     final response = await http.get(Uri.parse(url));
     if (response.statusCode != 200) {
       throw Exception('Gagal mengunduh PDF (status ${response.statusCode})');
     }
 
-    // 2. Bersihkan nama file (hapus spasi juga — ini penyebab masalah "BMW X-5")
+    // 2. Bersihkan nama file
     final cleanName = namaFile
-        .replaceAll(RegExp(r'[^\w\-]'), '_')  // ganti spasi & karakter aneh
-        .replaceAll(RegExp(r'_+'), '_');       // hindari double underscore
+        .replaceAll(RegExp(r'[^\w\-]'), '_')
+        .replaceAll(RegExp(r'_+'), '_');
 
-    // 3. Simpan ke app external storage — TIDAK butuh permission di semua Android
-    final dir = await getExternalStorageDirectory();
-    final saveDir = dir ?? await getApplicationDocumentsDirectory();
+    // 3. Simpan ke folder Downloads publik
+    Directory? saveDir;
 
-    final filePath = '${saveDir.path}/$cleanName.pdf';
+    if (Platform.isAndroid) {
+      // Folder Downloads yang terlihat di Files app
+      saveDir = Directory('/storage/emulated/0/Download');
+      if (!await saveDir.exists()) {
+        saveDir = await getExternalStorageDirectory();
+      }
+    } else {
+      // iOS: simpan ke Documents
+      saveDir = await getApplicationDocumentsDirectory();
+    }
+
+    final filePath = '${saveDir!.path}/$cleanName.pdf';
 
     // 4. Tulis file
-    final file = File(filePath);
-    await file.writeAsBytes(response.bodyBytes);
+    await File(filePath).writeAsBytes(response.bodyBytes);
 
     return filePath;
   }

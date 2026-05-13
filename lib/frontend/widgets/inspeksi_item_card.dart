@@ -104,9 +104,10 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
     // ── KUNCI: kalau user lagi ngetik/fokus, SKIP rebuild sama sekali ──
     if (_isFocused) return;
 
-    // Hanya sync kalau foto dari server berubah (bukan lokal)
     final newData = itemData;
     final newFotoUtama = newData["foto_utama"];
+
+    // Cek URL server
     final serverUrls = <String>[];
     if (newFotoUtama is List) {
       for (final e in newFotoUtama) {
@@ -122,15 +123,17 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
     final newKondisi = newData["status_kondisi"]?.toString() ?? 'Normal';
     final kondisiChanged = newKondisi.isNotEmpty && newKondisi != statusKondisi;
 
-    if (urlsChanged || kondisiChanged) {
-      // Hanya rebuild hal yang berubah, jangan reset semua state
+    // ← HANYA rebuild kalau kondisi berubah atau URL SERVER berubah
+    // Jangan rebuild hanya karena foto lokal bertambah — itu sudah di-handle setState di picker
+    if (kondisiChanged) {
+      setState(() => statusKondisi = newKondisi);
+    }
+
+    // URL server berubah (sync dari server) → update foto tapi TANPA override lokal
+    if (urlsChanged && serverUrls.isNotEmpty) {
       setState(() {
-        if (kondisiChanged) statusKondisi = newKondisi;
-        if (urlsChanged) {
-          // Merge: pertahankan File lokal, update URL server
-          final localFiles = fotoUtama.whereType<File>().toList();
-          fotoUtama = [...serverUrls, ...localFiles];
-        }
+        final localFiles = fotoUtama.whereType<File>().toList();
+        fotoUtama = [...serverUrls, ...localFiles];
       });
     }
   }
@@ -520,6 +523,13 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
               focusNode: _focusNode,
               // ← onChanged hanya simpan data, TIDAK setState
               onChanged: (_) => saveAll(),
+
+              onTap: () {
+                // Hanya fokus kalau user memang tap textfield ini
+                _focusNode.requestFocus();
+              },
+
+
               style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
                 hintText: 'Catatan (Opsional)',
@@ -550,10 +560,12 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
   // ── PICKER DENGAN FLASH ───────────────────────────────────────────────────
 
   void _pickFotoUtama(BuildContext context) {
+    // ← unfocus dulu sebelum buka sheet
+    FocusScope.of(context).unfocus();
+
     _showImagePickerSheet(
       context,
       onCamera: () async {
-        // Buka kamera custom dengan flash toggle
         final file = await Navigator.of(context).push<File>(
           MaterialPageRoute(builder: (_) => const _CameraWithFlash()),
         );
@@ -582,6 +594,9 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
   }
 
   void _pickFotoKerusakan(BuildContext context) {
+    // ← unfocus dulu sebelum buka sheet
+    FocusScope.of(context).unfocus();
+
     _showImagePickerSheet(
       context,
       onCamera: () async {
