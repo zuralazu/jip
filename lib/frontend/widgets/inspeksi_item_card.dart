@@ -93,7 +93,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
       "catatan": "",
       "foto_utama": <String>[],
       "foto": null,
-      "foto_kerusakan": <String>[],
+      "foto_tambahan": <String>[],
     });
   }
 
@@ -199,7 +199,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
   }
 
   List<File> _getKerusakanImages() {
-    final list = itemData["foto_kerusakan"];
+    final list = itemData["foto_tambahan"];
     if (list == null || list is! List) return [];
     return list
         .map((e) => e?.toString() ?? '')
@@ -218,7 +218,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
       "foto": fotoUtama.whereType<File>().isNotEmpty
           ? fotoUtama.whereType<File>().first.path
           : null,
-      "foto_kerusakan": fotoKerusakan.map((e) => e.path).toList(),
+      "foto_tambahan": fotoKerusakan.map((e) => e.path).toList(),
       "foto_utama_urls": fotoUtama.whereType<String>().toList(),
     });
   }

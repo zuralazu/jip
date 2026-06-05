@@ -352,48 +352,46 @@ class ApiService {
     try {
       final token = await AuthService.getToken();
       final uri = Uri.parse('$baseUrl/tugas/$orderId/$section/$itemId');
-      debugPrint('URL: $uri');
 
-      // Kalau ada foto file lokal → pakai multipart, kalau tidak → JSON biasa
-      final hasLocalPhoto = fotoUtama.any((p) => !p.startsWith('http') && File(p).existsSync()) ||
-          fotoKerusakan.any((p) => !p.startsWith('http') && File(p).existsSync());
+      final localUtama = fotoUtama.where(
+            (p) => !p.startsWith('http') && !p.startsWith('data:') && File(p).existsSync(),
+      ).toList();
+      final localKerusakan = fotoKerusakan.where(
+            (p) => !p.startsWith('http') && !p.startsWith('data:') && File(p).existsSync(),
+      ).toList();
 
-      if (hasLocalPhoto) {
-        final request = http.MultipartRequest('POST', uri)
-          ..headers['Authorization'] = 'Bearer $token'
-          ..fields['status_kondisi'] = kondisi.toLowerCase()
-          ..fields['catatan'] = catatan;
+      debugPrint('▶ ITEM $itemId | kondisi=$kondisi | fotoUtama=${fotoUtama.length} (local=${localUtama.length}) | foto_tambahan=${fotoKerusakan.length} (local=${localKerusakan.length})');
 
-        for (final path in fotoUtama) {
-          if (!path.startsWith('http') && File(path).existsSync()) {
-            request.files.add(await http.MultipartFile.fromPath('foto_utama[]', path));
-          }
-        }
-        for (final path in fotoKerusakan) {
-          if (!path.startsWith('http') && File(path).existsSync()) {
-            request.files.add(await http.MultipartFile.fromPath('foto_kerusakan[]', path));
-          }
-        }
+      // Selalu pakai multipart supaya field konsisten
+      final request = http.MultipartRequest('POST', uri)
+        ..headers['Authorization'] = 'Bearer $token'
+        ..headers['Accept'] = 'application/json'
+        ..fields['status_kondisi'] = kondisi.toLowerCase()
+        ..fields['catatan'] = catatan;
 
-        final streamed = await request.send();
-        debugPrint('ITEM $itemId: ${streamed.statusCode}');
-      } else {
-        final res = await http.post(
-          uri,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            'status_kondisi': kondisi.toLowerCase(),
-            'catatan': catatan,
-          }),
-        );
-        debugPrint('ITEM $itemId: ${res.statusCode}');
+      for (final path in localUtama) {
+        request.files.add(await http.MultipartFile.fromPath('foto_utama[]', path));
+        debugPrint('  ↑ foto_utama[]: $path');
       }
-    } catch (e) {
-      debugPrint('ERROR item $itemId: $e');
-      // eagerError: false → item lain tetap jalan meski 1 gagal
+      for (final path in localKerusakan) {
+        request.files.add(await http.MultipartFile.fromPath('foto_tambahan[]', path));
+        debugPrint('  ↑ foto_tambahan[]: $path');
+      }
+
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed); // ← WAJIB baca body
+      debugPrint('✔ ITEM $itemId STATUS: ${response.statusCode}');
+      debugPrint('✔ ITEM $itemId BODY: ${response.body}');
+
+      if (response.statusCode >= 500) {
+        throw Exception('Server error ${response.statusCode} pada item $itemId: ${response.body}');
+      }
+      if (response.statusCode == 422) {
+        throw Exception('Validasi gagal item $itemId: ${response.body}');
+      }
+
+    } catch (e, st) {
+      debugPrint('✘ ERROR item $itemId: $e\n$st');
     }
   }
 
@@ -640,7 +638,7 @@ class ApiService {
           kondisi: value['status_kondisi']?.toString() ?? 'Normal',
           catatan: value['catatan']?.toString() ?? '',
           fotoUtama: value['foto_utama'] is List ? List<String>.from(value['foto_utama']) : [],
-          fotoKerusakan: value['foto_kerusakan'] is List ? List<String>.from(value['foto_kerusakan']) : [],
+          fotoKerusakan: value['foto_tambahan'] is List ? List<String>.from(value['foto_tambahan']) : [],
         ),
       );
     });
@@ -673,7 +671,7 @@ class ApiService {
           kondisi: value['status_kondisi']?.toString() ?? 'Normal',
           catatan: value['catatan']?.toString() ?? '',
           fotoUtama: value['foto_utama'] is List ? List<String>.from(value['foto_utama']) : [],
-          fotoKerusakan: value['foto_kerusakan'] is List ? List<String>.from(value['foto_kerusakan']) : [],
+          fotoKerusakan: value['foto_tambahan'] is List ? List<String>.from(value['foto_tambahan']) : [],
         ),
       );
     });
@@ -706,7 +704,7 @@ class ApiService {
           kondisi: value['status_kondisi']?.toString() ?? 'Normal',
           catatan: value['catatan']?.toString() ?? '',
           fotoUtama: value['foto_utama'] is List ? List<String>.from(value['foto_utama']) : [],
-          fotoKerusakan: value['foto_kerusakan'] is List ? List<String>.from(value['foto_kerusakan']) : [],
+          fotoKerusakan: value['foto_tambahan'] is List ? List<String>.from(value['foto_tambahan']) : [],
         ),
       );
     });
@@ -739,7 +737,7 @@ class ApiService {
           kondisi: value['status_kondisi']?.toString() ?? 'Normal',
           catatan: value['catatan']?.toString() ?? '',
           fotoUtama: value['foto_utama'] is List ? List<String>.from(value['foto_utama']) : [],
-          fotoKerusakan: value['foto_kerusakan'] is List ? List<String>.from(value['foto_kerusakan']) : [],
+          fotoKerusakan: value['foto_tambahan'] is List ? List<String>.from(value['foto_tambahan']) : [],
         ),
       );
     });

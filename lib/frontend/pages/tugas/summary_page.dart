@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:convert';
+import 'dart:collection';
 import 'package:flutter/material.dart';
 import '../../utils/colors.dart';
 import '../../services/api_service.dart';
@@ -26,7 +28,8 @@ class _SummaryPageState extends State<SummaryPage> {
   Map<String, dynamic> header           = {};
   Map<String, dynamic> ringkasan        = {};
   Map<String, dynamic> informasiDokumen = {};
-  Map<String, dynamic> rincianFoto      = {};
+  final List<MapEntry<String, List<dynamic>>> rincianFotoList = [];
+  // Map<String, dynamic> rincianFoto      = {};
 
   // ─── safe cast ───────────────────────────────────────────────────────────────
   Map<String, dynamic> _safeMap(dynamic raw) {
@@ -54,15 +57,47 @@ class _SummaryPageState extends State<SummaryPage> {
       final outer = _safeMap(res['data']);
       final data  = _safeMap(outer['data']);
 
+      // ── DEBUG: print tiap section ──
+      final rincianRaw = data['rincian_foto_inspeksi'];
+      if (rincianRaw is Map) {
+        rincianRaw.forEach((key, value) {
+          debugPrint('=== SECTION: $key ===');
+          debugPrint(jsonEncode(value));
+        });
+      }
+
+      // ── Parse rincian dengan urutan tetap ──
+      final List<MapEntry<String, List<dynamic>>> parsed = [];
+      const sectionOrder = ['Interior', 'Eksterior', 'Mesin', 'Kaki Kaki'];
+
+      if (rincianRaw is Map) {
+        // Tampilkan sesuai urutan yang kita tentukan
+        for (final sectionName in sectionOrder) {
+          // Cari key yang cocok (case-insensitive, toleran spasi)
+          final key = rincianRaw.keys.firstWhere(
+                (k) => k.toString().toLowerCase().replaceAll(' ', '') ==
+                sectionName.toLowerCase().replaceAll(' ', ''),
+            orElse: () => '',
+          );
+          if (key.isNotEmpty && rincianRaw[key] is List) {
+            parsed.add(MapEntry(key.toString(), List<dynamic>.from(rincianRaw[key])));
+          }
+        }
+        // Tambahkan section yang tidak ada di sectionOrder (kalau ada tambahan dari backend)
+        for (final entry in rincianRaw.entries) {
+          final alreadyAdded = parsed.any((e) => e.key == entry.key.toString());
+          if (!alreadyAdded && entry.value is List) {
+            parsed.add(MapEntry(entry.key.toString(), List<dynamic>.from(entry.value)));
+          }
+        }
+      }
+
       setState(() {
         header           = _safeMap(data['header']);
         ringkasan        = _safeMap(data['ringkasan_inspeksi']);
         informasiDokumen = _safeMap(data['informasi_dokumen']);
-
-        final raw = data['rincian_foto_inspeksi'];
-        if (raw is Map) {
-          rincianFoto = raw.map((k, v) => MapEntry(k.toString(), v));
-        }
+        rincianFotoList.clear();
+        rincianFotoList.addAll(parsed);
         isLoading = false;
       });
     } catch (e) {
@@ -165,6 +200,30 @@ class _SummaryPageState extends State<SummaryPage> {
       }) {
     if (url == null || url.isEmpty) return _emptyPhotoBox(width, height);
 
+    // ✅ Base64
+    if (url.startsWith('data:image')) {
+      try {
+        final base64Str = url.contains(',') ? url.split(',').last : url;
+        final bytes = base64Decode(base64Str);
+        return GestureDetector(
+          onTap: () => _viewFull(url, isNetwork: false, isBase64: true),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.memory(
+              bytes,
+              width: width == double.infinity ? null : width,
+              height: height,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _emptyPhotoBox(width, height),
+            ),
+          ),
+        );
+      } catch (_) {
+        return _emptyPhotoBox(width, height);
+      }
+    }
+
+    // ✅ Network URL
     final isNetwork = url.startsWith('http');
     final isLocal   = url.startsWith('/');
 
@@ -180,7 +239,6 @@ class _SummaryPageState extends State<SummaryPage> {
           width: width == double.infinity ? null : width,
           height: height,
           fit: BoxFit.cover,
-          // ✅ REVISI 2: loading placeholder saat gambar belum muncul
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) return child;
             return _loadingPhotoBox(width, height, loadingProgress);
@@ -192,7 +250,6 @@ class _SummaryPageState extends State<SummaryPage> {
           width: width == double.infinity ? null : width,
           height: height,
           fit: BoxFit.cover,
-          // ✅ REVISI 2: loading placeholder untuk file lokal
           frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
             if (wasSynchronouslyLoaded || frame != null) return child;
             return _shimmerBox(width, height);
@@ -283,10 +340,24 @@ class _SummaryPageState extends State<SummaryPage> {
     ),
   );
 
-  void _viewFull(String src, {required bool isNetwork}) {
-    final img = isNetwork
-        ? Image.network(src, fit: BoxFit.contain)
-        : Image.file(File(src), fit: BoxFit.contain);
+  void _viewFull(String src, {required bool isNetwork, bool isBase64 = false}) {
+    Widget img;
+
+    if (isBase64) {
+      try {
+        final base64Str = src.contains(',') ? src.split(',').last : src;
+        img = Image.memory(base64Decode(base64Str), fit: BoxFit.contain);
+      } catch (_) {
+        img = const Center(
+          child: Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48),
+        );
+      }
+    } else if (isNetwork) {
+      img = Image.network(src, fit: BoxFit.contain);
+    } else {
+      img = Image.file(File(src), fit: BoxFit.contain);
+    }
+
     showDialog(
       context: context,
       builder: (_) => Dialog(
@@ -481,43 +552,45 @@ class _SummaryPageState extends State<SummaryPage> {
     ),
   );
 
-  Widget _buildBody() => SingleChildScrollView(
-    padding: const EdgeInsets.only(bottom: 40),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _buildHeaderCard(),
-      _buildRingkasanCard(),
-      _sectionHeader('Informasi & Dokumen', Icons.folder_open_rounded),
-      _card(children: [
-        _infoRow('Nomor Rangka',      informasiDokumen['nomor_rangka']),
-        _infoRow('Nomor Mesin',       informasiDokumen['nomor_mesin']),
-        _infoRow('Pajak 1 Tahun',     informasiDokumen['pajak_1_tahun']),
-        _infoRow('Pajak 5 Tahun',     informasiDokumen['pajak_5_tahun']),
-        _infoRow('PKB',               informasiDokumen['pkb']),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Divider(height: 20, color: Color(0xFFEEEEEE)),
-        ),
-        _infoRow('Nama Pemilik BPKB', informasiDokumen['nama_pemilik_bpkb']),
-        _infoRow('Nomor BPKB',        informasiDokumen['nomor_bpkb']),
-        _infoRow('Kepemilikan',       informasiDokumen['kepemilikan']),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Divider(height: 20, color: Color(0xFFEEEEEE)),
-        ),
-        _infoRow('Buku Service', informasiDokumen['buku_service']),
+  Widget _buildBody() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 40),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _buildHeaderCard(),
+        _buildRingkasanCard(),
+        _sectionHeader('Informasi & Dokumen', Icons.folder_open_rounded),
+        _card(children: [
+          _infoRow('Nomor Rangka',      informasiDokumen['nomor_rangka']),
+          _infoRow('Nomor Mesin',       informasiDokumen['nomor_mesin']),
+          _infoRow('Pajak 1 Tahun',     informasiDokumen['pajak_1_tahun']),
+          _infoRow('Pajak 5 Tahun',     informasiDokumen['pajak_5_tahun']),
+          _infoRow('PKB',               informasiDokumen['pkb']),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Divider(height: 20, color: Color(0xFFEEEEEE)),
+          ),
+          _infoRow('Nama Pemilik BPKB', informasiDokumen['nama_pemilik_bpkb']),
+          _infoRow('Nomor BPKB',        informasiDokumen['nomor_bpkb']),
+          _infoRow('Kepemilikan',       informasiDokumen['kepemilikan']),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Divider(height: 20, color: Color(0xFFEEEEEE)),
+          ),
+          _infoRow('Buku Service', informasiDokumen['buku_service']),
+        ]),
+        if (rincianFotoList.isNotEmpty) ...[
+          _sectionHeader('Rincian Inspeksi', Icons.camera_alt_rounded),
+          ...rincianFotoList.map((e) => _buildKategoriSection(e.key, e.value)), // ← INI yang hilang
+        ] else ...[
+          _sectionHeader('Rincian Inspeksi', Icons.camera_alt_rounded),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _emptyState('Belum ada data rincian inspeksi'),
+          ),
+        ],
       ]),
-      if (rincianFoto.isNotEmpty) ...[
-        _sectionHeader('Rincian Inspeksi', Icons.camera_alt_rounded),
-        ...rincianFoto.entries.map((e) => _buildKategoriSection(e.key, _safeList(e.value))),
-      ] else ...[
-        _sectionHeader('Rincian Inspeksi', Icons.camera_alt_rounded),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _emptyState('Belum ada data rincian inspeksi'),
-        ),
-      ],
-    ]),
-  );
+    );
+  }
 
   Widget _buildHeaderCard() {
     final namaKendaraan = header['nama_kendaraan'] ?? widget.dataTugas['nama_mobil'] ?? '-';
