@@ -100,14 +100,12 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
   @override
   void didUpdateWidget(covariant InspeksiItemCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-
-    // ── KUNCI: kalau user lagi ngetik/fokus, SKIP rebuild sama sekali ──
     if (_isFocused) return;
 
     final newData = itemData;
-    final newFotoUtama = newData["foto_utama"];
 
-    // Cek URL server
+    // ── Guard foto utama (sudah ada) ──
+    final newFotoUtama = newData["foto_utama"];
     final serverUrls = <String>[];
     if (newFotoUtama is List) {
       for (final e in newFotoUtama) {
@@ -115,7 +113,6 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
         if (s.startsWith('http')) serverUrls.add(s);
       }
     }
-
     final currentUrls = fotoUtama.whereType<String>().toList();
     final urlsChanged = serverUrls.length != currentUrls.length ||
         !serverUrls.every((u) => currentUrls.contains(u));
@@ -123,18 +120,25 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
     final newKondisi = newData["status_kondisi"]?.toString() ?? 'Normal';
     final kondisiChanged = newKondisi.isNotEmpty && newKondisi != statusKondisi;
 
-    // ← HANYA rebuild kalau kondisi berubah atau URL SERVER berubah
-    // Jangan rebuild hanya karena foto lokal bertambah — itu sudah di-handle setState di picker
     if (kondisiChanged) {
       setState(() => statusKondisi = newKondisi);
     }
 
-    // URL server berubah (sync dari server) → update foto tapi TANPA override lokal
     if (urlsChanged && serverUrls.isNotEmpty) {
       setState(() {
         final localFiles = fotoUtama.whereType<File>().toList();
         fotoUtama = [...serverUrls, ...localFiles];
       });
+    }
+
+    // ── TAMBAH: Guard foto kerusakan ──
+    // Hanya update dari formData kalau state lokal kosong
+    // Jangan override kalau user sudah tambah foto di sesi ini
+    if (fotoKerusakan.isEmpty) {
+      final newKerusakan = _getKerusakanImages();
+      if (newKerusakan.isNotEmpty) {
+        setState(() => fotoKerusakan = newKerusakan);
+      }
     }
   }
 
@@ -200,6 +204,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
 
   List<File> _getKerusakanImages() {
     final list = itemData["foto_tambahan"];
+    debugPrint('GET_KERUSAKAN: raw=$list');
     if (list == null || list is! List) return [];
     return list
         .map((e) => e?.toString() ?? '')
@@ -210,6 +215,7 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
   }
 
   void saveAll() {
+    debugPrint('SAVEALL: fotoKerusakan=${fotoKerusakan.length} paths=${fotoKerusakan.map((e) => e.path).toList()}');
     widget.onChanged?.call({
       "status_kondisi": statusKondisi,
       "showKerusakan": showKerusakan,
@@ -607,8 +613,10 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
           final compressed = await ImageUtils.compressImage(
             file, quality: 70, maxWidth: 1280, maxHeight: 1280,
           );
+          debugPrint('AFTER COMPRESS: fotoKerusakan=${fotoKerusakan.length}');
           setState(() => fotoKerusakan.add(compressed));
           saveAll();
+          debugPrint('AFTER SETSTATE: fotoKerusakan=${fotoKerusakan.length}');
         }
       },
       onGallery: () async {
@@ -620,8 +628,10 @@ class _InspeksiItemCardState extends State<InspeksiItemCard> {
             );
             fotoKerusakan.add(compressed);
           }
+          debugPrint('AFTER PICK: fotoKerusakan=${fotoKerusakan.length}');
           setState(() {});
           saveAll();
+          debugPrint('AFTER SAVEALL: fotoKerusakan=${fotoKerusakan.length}');
         }
       },
     );

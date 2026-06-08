@@ -126,9 +126,9 @@ class _MesinPageState extends State<MesinPage> {
         safeValue = {
           "status_kondisi": value["status_kondisi"]?.toString() ?? "Normal",
           "catatan": value["catatan"]?.toString() ?? "",
-          "foto_utama": value["foto_utama"] ?? [],        // ← list multi foto
-          "foto": value["foto"],                          // ← backward compat
-          "foto_kerusakan": value["foto_kerusakan"] ?? [],
+          "foto_utama": value["foto_utama"] ?? [],
+          "foto": value["foto"],
+          "foto_tambahan": value["foto_tambahan"] ?? [],
         };
       } else {
         safeValue = {
@@ -136,7 +136,7 @@ class _MesinPageState extends State<MesinPage> {
           "catatan": "",
           "foto_utama": [],
           "foto": null,
-          "foto_kerusakan": [],
+          "foto_tambahan": [],
         };
       }
 
