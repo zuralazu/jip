@@ -119,7 +119,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
         "catatan":        item["catatan"]?.toString() ?? "",
         "foto_utama":     _parseFotoList(item["foto_utama"] ?? item["foto"]),
         "foto":           item["foto"]?.toString(),
-        "foto_kerusakan": _parseFotoList(item["foto_tambahan"]),
+        "foto_tambahan": _parseFotoList(item["foto_tambahan"]),
       };
     }
     return result;
@@ -339,16 +339,20 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     _showLoading();
     try {
       final id = _orderId;
-      switch (currentStep) {
-        case 0: await ApiService.saveInformasi(id, formData); break;
-        case 1: await ApiService.saveDokumen(id, formData); break;
-        case 2: await ApiService.saveInterior(id, formData, isFinal: false); break;
-        case 3: await ApiService.saveEksterior(id, formData, isFinal: false); break;
-        case 4: await ApiService.saveMesin(id, formData, isFinal: false); break;
-        case 5: await ApiService.saveKakiKaki(id, formData, isFinal: false); break;
-      // ── Step 6: Simpan kondisi tabrak/banjir + kesimpulan ke endpoint informasi ──
-        case 6: await ApiService.saveKesimpulan(id, formData); break;
-      }
+
+      // ← Selalu simpan semua section inspeksi sekaligus
+      await Future.wait([
+        if (currentStep == 0) ApiService.saveInformasi(id, formData),
+        if (currentStep == 1) ApiService.saveDokumen(id, formData),
+        if (currentStep >= 2 && currentStep <= 5) ...[
+          ApiService.saveInterior(id, formData),
+          ApiService.saveEksterior(id, formData),
+          ApiService.saveMesin(id, formData),
+          ApiService.saveKakiKaki(id, formData),
+        ],
+        if (currentStep == 6) ApiService.saveKesimpulan(id, formData),
+      ], eagerError: false);
+
       if (inspectionStatus == 'draft') setState(() => inspectionStatus = 'progress');
       _hideLoading();
       _showSuccessToast('Perubahan berhasil disimpan!');

@@ -351,7 +351,7 @@ class ApiService {
   }) async {
     try {
       final token = await AuthService.getToken();
-      final uri = Uri.parse('$baseUrl/tugas/$orderId/$section/$itemId');
+      final uri = Uri.parse('$baseUrl/tugas/$orderId/$section-photo/$itemId');
 
       final localUtama = fotoUtama.where(
             (p) => !p.startsWith('http') && !p.startsWith('data:') && File(p).existsSync(),
@@ -554,7 +554,7 @@ class ApiService {
 
     final request = http.MultipartRequest(
       "POST",
-      Uri.parse("$baseUrl/tugas/$orderId/dokumen"),
+      Uri.parse("$baseUrl/tugas/$orderId/dokumen-photo"),
     );
 
     request.headers["Authorization"] = "Bearer $token";
@@ -605,7 +605,7 @@ class ApiService {
     final token = await AuthService.getToken();
 
     final response = await http.get(
-      Uri.parse('$baseUrl/tugas/$orderId/dokumen'),
+      Uri.parse('$baseUrl/tugas/$orderId/dokumen-photo'),
       headers: {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
@@ -629,6 +629,8 @@ class ApiService {
     sectionData.forEach((key, value) {
       final itemId = int.tryParse(key.toString());
       if (itemId == null || value is! Map) return;
+
+      debugPrint('INTERIOR KEY=$key foto_tambahan=${value['foto_tambahan']}');
 
       futures.add(
         _saveOneItem(

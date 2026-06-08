@@ -135,16 +135,17 @@ class _EksteriorPageState extends State<EksteriorPage> {
         safeValue = {
           "status_kondisi": value["status_kondisi"]?.toString() ?? "Normal",
           "catatan": value["catatan"]?.toString() ?? "",
-          "foto_utama": value["foto_utama"] ?? [],  // ← TAMBAH INI
+          "foto_utama": value["foto_utama"] ?? [],
           "foto": value["foto"],
-          "foto_kerusakan": value["foto_kerusakan"] ?? [],
+          "foto_tambahan": value["foto_tambahan"] ?? [],
         };
       } else {
         safeValue = {
           "status_kondisi": "normal",
           "catatan": "",
+          "foto_utama": [],
           "foto": null,
-          "foto_kerusakan": null,
+          "foto_tambahan": [],
         };
       }
 
