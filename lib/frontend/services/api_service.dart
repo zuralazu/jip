@@ -1107,11 +1107,6 @@ class ApiService {
         'Accept': 'application/json',
       },
     );
-
-    debugPrint('=== DELETE KERUSAKAN LAINNYA ===');
-    debugPrint('STATUS: ${response.statusCode}');
-    debugPrint('BODY: ${response.body}');
-
     return _handleResponse(response);
   }
 }
