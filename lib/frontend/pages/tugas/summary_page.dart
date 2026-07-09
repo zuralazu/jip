@@ -5,14 +5,17 @@ import 'package:flutter/material.dart';
 import '../../utils/colors.dart';
 import '../../services/api_service.dart';
 import 'package:open_file/open_file.dart';
+import '../../config/app_config.dart';
 
 class SummaryPage extends StatefulWidget {
   final int orderId;
+  final int orderIdKL;
   final Map<String, dynamic> dataTugas;
 
   const SummaryPage({
     super.key,
     required this.orderId,
+    required this.orderIdKL,
     required this.dataTugas,
   });
 
@@ -29,6 +32,7 @@ class _SummaryPageState extends State<SummaryPage> {
   Map<String, dynamic> ringkasan        = {};
   Map<String, dynamic> informasiDokumen = {};
   final List<MapEntry<String, List<dynamic>>> rincianFotoList = [];
+  List<Map<String, dynamic>> kerusakanLainnya = [];
   // Map<String, dynamic> rincianFoto      = {};
 
   // ─── safe cast ───────────────────────────────────────────────────────────────
@@ -53,27 +57,27 @@ class _SummaryPageState extends State<SummaryPage> {
 
   Future<void> _loadDetail() async {
     try {
-      final res   = await ApiService.getDetailTugas(widget.orderId);
+      // Load detail tugas + kerusakan lainnya secara paralel
+      final results = await Future.wait([
+        ApiService.getDetailTugas(widget.orderId),
+        ApiService.getKerusakanLainnya(widget.orderIdKL),
+      ]);
+
+      debugPrint('SUMMARY orderId: ${widget.orderId}');
+
+      final res   = results[0] as Map<String, dynamic>;
+      final resKL = results[1] as Map<String, dynamic>;
+
       final outer = _safeMap(res['data']);
       final data  = _safeMap(outer['data']);
 
-      // ── DEBUG: print tiap section ──
-      final rincianRaw = data['rincian_foto_inspeksi'];
-      if (rincianRaw is Map) {
-        rincianRaw.forEach((key, value) {
-          debugPrint('=== SECTION: $key ===');
-          debugPrint(jsonEncode(value));
-        });
-      }
-
       // ── Parse rincian dengan urutan tetap ──
+      final rincianRaw = data['rincian_foto_inspeksi'];
       final List<MapEntry<String, List<dynamic>>> parsed = [];
       const sectionOrder = ['Interior', 'Eksterior', 'Mesin', 'Kaki Kaki'];
 
       if (rincianRaw is Map) {
-        // Tampilkan sesuai urutan yang kita tentukan
         for (final sectionName in sectionOrder) {
-          // Cari key yang cocok (case-insensitive, toleran spasi)
           final key = rincianRaw.keys.firstWhere(
                 (k) => k.toString().toLowerCase().replaceAll(' ', '') ==
                 sectionName.toLowerCase().replaceAll(' ', ''),
@@ -83,7 +87,6 @@ class _SummaryPageState extends State<SummaryPage> {
             parsed.add(MapEntry(key.toString(), List<dynamic>.from(rincianRaw[key])));
           }
         }
-        // Tambahkan section yang tidak ada di sectionOrder (kalau ada tambahan dari backend)
         for (final entry in rincianRaw.entries) {
           final alreadyAdded = parsed.any((e) => e.key == entry.key.toString());
           if (!alreadyAdded && entry.value is List) {
@@ -92,12 +95,19 @@ class _SummaryPageState extends State<SummaryPage> {
         }
       }
 
+      // ── Parse kerusakan lainnya ──
+      final rawKL = resKL['data']?['data'] ?? resKL['data'] ?? [];
+      final parsedKL = List<Map<String, dynamic>>.from(
+        (rawKL as List).map((e) => Map<String, dynamic>.from(e)),
+      );
+
       setState(() {
         header           = _safeMap(data['header']);
         ringkasan        = _safeMap(data['ringkasan_inspeksi']);
         informasiDokumen = _safeMap(data['informasi_dokumen']);
         rincianFotoList.clear();
         rincianFotoList.addAll(parsed);
+        kerusakanLainnya = parsedKL;
         isLoading = false;
       });
     } catch (e) {
@@ -530,6 +540,166 @@ class _SummaryPageState extends State<SummaryPage> {
     );
   }
 
+  Widget _buildKerusakanLainnyaSection() {
+    if (kerusakanLainnya.isEmpty) return const SizedBox.shrink();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
+        child: Row(children: [
+          Container(
+            width: 34, height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.add_box_outlined, color: AppColors.primary, size: 18),
+          ),
+          const SizedBox(width: 10),
+          const Text('Kerusakan Lainnya',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text('${kerusakanLainnya.length} section',
+                style: const TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w600)),
+          ),
+        ]),
+      ),
+      ...kerusakanLainnya.map((item) => _buildKerusakanLainnyaCard(item)),
+    ]);
+  }
+
+  Widget _buildKerusakanLainnyaCard(Map<String, dynamic> item) {
+    final nama    = item['nama_kerusakan']?.toString()    ?? '-';
+    final deskripsi = item['deskripsi']?.toString()       ?? '';
+    final tingkat = item['tingkat_kerusakan']?.toString() ?? 'ringan';
+
+    final List<String> fotos = _parseAndPrefixFotos(item['foto']);
+
+    Color tingkatColor;
+    String tingkatLabel;
+    switch (tingkat) {
+      case 'berat':
+        tingkatColor = Colors.red.shade600;
+        tingkatLabel = 'Berat';
+        break;
+      case 'sedang':
+        tingkatColor = Colors.orange.shade600;
+        tingkatLabel = 'Sedang';
+        break;
+      default:
+        tingkatColor = Colors.green.shade600;
+        tingkatLabel = 'Ringan';
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Header
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+          child: Row(children: [
+            Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(
+                color: tingkatColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.warning_amber_rounded, color: tingkatColor, size: 16),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(nama,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: tingkatColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: tingkatColor.withOpacity(0.3)),
+              ),
+              child: Text(tingkatLabel,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: tingkatColor)),
+            ),
+          ]),
+        ),
+
+        // Deskripsi
+        if (deskripsi.isNotEmpty && deskripsi != 'null')
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8E1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFFE082)),
+              ),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Icon(Icons.notes_rounded, size: 13, color: Color(0xFFE67E22)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(deskripsi,
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF7D5A00))),
+                ),
+              ]),
+            ),
+          ),
+
+        // Foto grid
+        if (fotos.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                'Foto (${fotos.length})',
+                style: const TextStyle(fontSize: 11, color: AppColors.textGrey, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 6),
+              fotos.length == 1
+                  ? _photoPreview(fotos.first, height: 160)
+                  : Wrap(
+                spacing: 8, runSpacing: 8,
+                children: fotos
+                    .map((url) => _photoPreview(url, width: 100, height: 100))
+                    .toList(),
+              ),
+            ]),
+          )
+        else
+          const SizedBox(height: 4),
+      ]),
+    );
+  }
+
+  // Helper: parse foto + prefix relative path dengan base URL server
+  List<String> _parseAndPrefixFotos(dynamic raw) {
+    List<String> paths = [];
+    if (raw == null) return paths;
+    if (raw is List) {
+      paths = raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+    } else if (raw is String && raw.isNotEmpty) {
+      paths = [raw];
+    }
+    return paths.map((p) {
+      if (p.startsWith('http')) return p;
+      final base = AppConfig.baseUrl.replaceAll('/api', '');
+      return '$base$p';
+    }).toList();
+  }
+
   Widget _buildError() => Center(
     child: Padding(
       padding: const EdgeInsets.all(32),
@@ -580,7 +750,7 @@ class _SummaryPageState extends State<SummaryPage> {
         ]),
         if (rincianFotoList.isNotEmpty) ...[
           _sectionHeader('Rincian Inspeksi', Icons.camera_alt_rounded),
-          ...rincianFotoList.map((e) => _buildKategoriSection(e.key, e.value)), // ← INI yang hilang
+          ...rincianFotoList.map((e) => _buildKategoriSection(e.key, e.value)),
         ] else ...[
           _sectionHeader('Rincian Inspeksi', Icons.camera_alt_rounded),
           Padding(
@@ -588,6 +758,7 @@ class _SummaryPageState extends State<SummaryPage> {
             child: _emptyState('Belum ada data rincian inspeksi'),
           ),
         ],
+        _buildKerusakanLainnyaSection(),
       ]),
     );
   }

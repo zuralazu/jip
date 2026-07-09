@@ -995,4 +995,123 @@ class ApiService {
 
     return filePath;
   }
+
+  static Future<Map<String, dynamic>> getKerusakanLainnya(int orderId) async {
+    final token = await AuthService.getToken();
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/tugas/$orderId/kerusakan-lainnya'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    debugPrint('=== GET KERUSAKAN LAINNYA ===');
+    debugPrint('STATUS: ${response.statusCode}');
+    debugPrint('BODY: ${response.body}');
+
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> storeKerusakanLainnya({
+    required int orderId,
+    required String namaKerusakan,
+    String? deskripsi,
+    String tingkatKerusakan = 'ringan',
+    List<File> fotos = const [],
+  }) async {
+    final token = await AuthService.getToken();
+
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/tugas/$orderId/kerusakan-lainnya'),
+    );
+
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] = 'application/json';
+
+    request.fields['nama_kerusakan']    = namaKerusakan;
+    request.fields['deskripsi']         = deskripsi ?? '';
+    request.fields['tingkat_kerusakan'] = tingkatKerusakan;
+
+    for (int i = 0; i < fotos.length; i++) {
+      if (await fotos[i].exists()) {
+        request.files.add(await http.MultipartFile.fromPath('foto[]', fotos[i].path));
+        debugPrint('  ↑ foto[$i]: ${fotos[i].path}');
+      }
+    }
+
+    debugPrint('=== STORE KERUSAKAN LAINNYA ===');
+    debugPrint('order_id: $orderId | nama: $namaKerusakan | tingkat: $tingkatKerusakan | fotos: ${fotos.length}');
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+
+    debugPrint('STATUS: ${response.statusCode}');
+    debugPrint('BODY: ${response.body}');
+
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> updateKerusakanLainnya({
+    required int orderId,
+    required int id,
+    required String namaKerusakan,
+    String? deskripsi,
+    String tingkatKerusakan = 'ringan',
+    List<File> fotos = const [],
+  }) async {
+    final token = await AuthService.getToken();
+
+    // Backend pakai POST + /update karena tidak ada method PATCH di route
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/tugas/$orderId/kerusakan-lainnya/$id/update'),
+    );
+
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['Accept'] = 'application/json';
+
+    request.fields['nama_kerusakan']    = namaKerusakan;
+    request.fields['deskripsi']         = deskripsi ?? '';
+    request.fields['tingkat_kerusakan'] = tingkatKerusakan;
+
+    for (int i = 0; i < fotos.length; i++) {
+      if (await fotos[i].exists()) {
+        request.files.add(await http.MultipartFile.fromPath('foto[]', fotos[i].path));
+        debugPrint('  ↑ foto[$i]: ${fotos[i].path}');
+      }
+    }
+
+    debugPrint('=== UPDATE KERUSAKAN LAINNYA ===');
+    debugPrint('order_id: $orderId | id: $id | nama: $namaKerusakan | fotos: ${fotos.length}');
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+
+    debugPrint('STATUS: ${response.statusCode}');
+    debugPrint('BODY: ${response.body}');
+
+    return _handleResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> deleteKerusakanLainnya(
+      int orderId, int id) async {
+    final token = await AuthService.getToken();
+
+    final response = await http.delete(
+      Uri.parse('$baseUrl/tugas/$orderId/kerusakan-lainnya/$id'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    debugPrint('=== DELETE KERUSAKAN LAINNYA ===');
+    debugPrint('STATUS: ${response.statusCode}');
+    debugPrint('BODY: ${response.body}');
+
+    return _handleResponse(response);
+  }
 }
