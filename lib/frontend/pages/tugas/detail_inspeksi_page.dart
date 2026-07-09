@@ -11,6 +11,7 @@ import 'step/eksterior_page.dart';
 import 'step/mesin_page.dart';
 import 'step/kaki_kaki_page.dart';
 import 'step/kesimpulan_page.dart';
+import 'step/kerusakan_lainnya_page.dart';
 
 class DetailInspeksiPage extends StatefulWidget {
   final int orderId;
@@ -38,7 +39,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
 
   // ── Step 6 = Kesimpulan (baru) ──────────────────────────────────────────
   final List<String> stepTitles = [
-    'Informasi', 'Dokumen', 'Interior', 'Eksterior', 'Mesin', 'Kaki-kaki', 'Kesimpulan',
+    'Informasi', 'Dokumen', 'Interior', 'Eksterior', 'Mesin', 'Kaki-kaki', 'Kesimpulan', 'Lainnya',
   ];
 
   @override
@@ -56,6 +57,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
     Icons.settings_outlined,
     Icons.tire_repair_outlined,
     Icons.assignment_turned_in_outlined,
+    Icons.add_box_outlined,
   ];
 
   int get _orderId => widget.orderId;
@@ -341,6 +343,12 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
       final id = _orderId;
 
       // ← Selalu simpan semua section inspeksi sekaligus
+
+      if (currentStep == 7) {
+        _showSuccessToast('Section tersimpan!');
+        return;
+      }
+
       await Future.wait([
         if (currentStep == 0) ApiService.saveInformasi(id, formData),
         if (currentStep == 1) ApiService.saveDokumen(id, formData),
@@ -418,7 +426,6 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
           _buildTabBar(),
           _buildProgressStrip(),
           Expanded(
-            // ← IndexedStack: semua page tetap hidup, cuma visibility yang berubah
             child: IndexedStack(
               index: currentStep,
               children: [
@@ -429,6 +436,7 @@ class _DetailInspeksiPageState extends State<DetailInspeksiPage> with BasePage {
                 MesinPage(formData: formData, onChanged: _onFormChanged),
                 KakiKakiPage(formData: formData, onChanged: _onFormChanged),
                 KesimpulanPage(formData: formData, onChanged: _onFormChanged, validationErrors: _currentErrors),
+                KerusakanLainnyaPage(orderId: _orderId, isDone: inspectionStatus == 'done',),
               ],
             ),
           ),

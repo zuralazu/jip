@@ -273,7 +273,8 @@ class TugasCard extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (_) => SummaryPage(
-                      orderId: item['id'],
+                      orderId: item['id'] as int,
+                      orderIdKL: (item['order_id'] ?? item['id']) as int,
                       dataTugas: item,
                     ),
                   ),
